@@ -5,42 +5,47 @@
 
 namespace NGCForest {
 
-    namespace NTreePrivate {
+    // TTreeNode
+    TTreeNode::TTreeNode(const TConstFeaturesPtr answers)
+        : FeatureIndex(0)
+        , Threshold(0.0)
+        , Left(TTreeNodePtr())
+        , Right(TTreeNodePtr())
+        , Answers(answers)
+    {
+    }
 
-        class TNode {
-            public:
-                size_t GetFeatureIndex() const {
-                    return FeatureIndex;
-                }
+    size_t TTreeNode::GetFeatureIndex() const {
+        return FeatureIndex;
+    }
 
-                double GetThreshold() const {
-                    return Threshold;
-                }
+    double TTreeNode::GetThreshold() const {
+        return Threshold;
+    }
 
-                TNodePtr GetLeftNode() const {
-                    return Left;
-                }
+    TTreeNodePtr TTreeNode::GetLeftNode() const {
+        return Left;
+    }
 
-                TNodePtr GetRightNode() const {
-                    return Right;
-                }
+    TTreeNodePtr TTreeNode::GetRightNode() const {
+        return Right;
+    }
 
-                TConstFeaturesPtr GetAnswers() const {
-                    return Answers;
-                }
+    TConstFeaturesPtr TTreeNode::GetAnswers() const {
+        return Answers;
+    }
 
-            private:
-                size_t FeatureIndex;
-                double Threshold;
-                TNodePtr Left, Right;
-                TConstFeaturesPtr Answers;
-        };
-
-    } // namespace NTreePrivate
+    void TTreeNode::SplitNode(size_t featureIndex, double threshold, TTreeNodePtr left, TTreeNodePtr right) {
+        FeatureIndex = featureIndex;
+        Threshold = threshold;
+        Left = left;
+        Right = right;
+        TConstFeaturesPtr().swap(Answers);
+    }
 
 
     // TTreeImpl
-    TTreeImpl::TTreeImpl(NTreePrivate::TNodePtr root)
+    TTreeImpl::TTreeImpl(TTreeNodePtr root)
         : Root(root)
     {
     }
@@ -49,7 +54,7 @@ namespace NGCForest {
     }
 
     TConstFeaturesPtr TTreeImpl::DoCalculate(const TFeatures &features) {
-        NTreePrivate::TNodePtr node = Root;
+        TTreeNodePtr node = Root;
         while (!!node->GetLeftNode()) {
             double featureValue = features[node->GetFeatureIndex()];
             if (featureValue < node->GetThreshold())
