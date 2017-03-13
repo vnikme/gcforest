@@ -84,15 +84,16 @@ namespace NGCForest {
             for (size_t i = 0; i < n; ++i)
                 idx[i] = i;
             std::sort(idx.begin(), idx.end(), [&x, &indexes, featureIndex] (size_t a, size_t b) { return x[indexes[a]][featureIndex] < x[indexes[b]][featureIndex]; });
-            bool result = false;
+            bool result = false, median = false;
             bestThreshold = x[indexes[idx[0]]][featureIndex] - 1.0;
             std::vector<double> left(classCount), right = CountClasses(x, y, classCount, indexes);
             bestGiniImpurity = GiniImpurity(right) / 2.0;
+            double medianThreshold = bestThreshold, medianGini = bestGiniImpurity;
             for (size_t i = 0; i + 1 < n; ++i) {
                 size_t prev = indexes[idx[i]], next = indexes[idx[i + 1]];
                 right[y[prev]] -= 1;
                 left[y[prev]] += 1;
-                if (fabs(x[prev][featureIndex] - x[next][featureIndex]) < 1e-5)
+                if (fabs(x[prev][featureIndex] - x[next][featureIndex]) < 1e-10)
                     continue;
                 double threshold = (x[prev][featureIndex] + x[next][featureIndex]) / 2.0;
                 double gini = (GiniImpurity(left) + GiniImpurity(right)) / 2.0;
@@ -101,6 +102,16 @@ namespace NGCForest {
                     bestGiniImpurity = gini;
                     bestThreshold = threshold;
                 }
+                if (!median && i > n / 2) {
+                    median = true;
+                    medianThreshold = threshold;
+                    medianGini = gini;
+                }
+            }
+            if (median && !result) {
+                result = true;
+                bestThreshold = medianThreshold;
+                bestGiniImpurity = medianGini;
             }
             return result;
         }
@@ -139,7 +150,7 @@ namespace NGCForest {
             return true;
         }
 
-        TTreeImplPtr TrainOneTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, boost::random::mt19937 &rng) {
+        TTreeImplPtr TrainOneTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, boost::random::mt19937 &rng) {
             size_t sampleCount = x.size();
             boost::random::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
@@ -164,9 +175,9 @@ namespace NGCForest {
                     TConstFeaturesPtr ohl(OneHot(leftWinner, classCount)), ohr(OneHot(rightWinner, classCount));
                     TTreeNodePtr left(new TTreeNode(ohl)), right(new TTreeNode(ohr));
                     item.Node->SplitNode(featureIndex, threshold, left, right);
-                    if (!IsOnlyOneClass(y, leftIndexes))
+                    if (item.Depth < maxDepth && !IsOnlyOneClass(y, leftIndexes))
                         queue.push_back(TBucket(left, std::move(leftIndexes), item.Depth + 1));
-                    if (!IsOnlyOneClass(y, rightIndexes))
+                    if (item.Depth < maxDepth && !IsOnlyOneClass(y, rightIndexes))
                         queue.push_back(TBucket(right, std::move(rightIndexes), item.Depth + 1));
                 }
             }
@@ -176,11 +187,11 @@ namespace NGCForest {
 
     } // namespace
 
-    TCalculatorPtr Train(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t treeCount) {
+    TCalculatorPtr Train(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount) {
         boost::random::mt19937 rng; //(time(nullptr));
         TForest forest(treeCount);
         for (size_t i = 0; i < treeCount; ++i)
-            forest[i] = TrainOneTree(x, y, classCount, rng);
+            forest[i] = TrainOneTree(x, y, classCount, maxDepth, rng);
         TCombinerPtr combiner(new TMajorityVote);
         return TCalculatorPtr(new TForestCalculator(std::move(forest), combiner));
     }
