@@ -20,6 +20,7 @@ namespace NGCForest {
         protected:
             virtual void DoCalculate(const TFeatures &features, TFeatures &result) const = 0;
     };
+    using TCalculatorPtr = std::shared_ptr<TCalculator>;
 
 } // namespace NGCForest
 

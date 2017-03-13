@@ -17,7 +17,7 @@ else()
     message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
-find_package(Boost 1.54.0 COMPONENTS program_options REQUIRED)
+find_package(Boost 1.54.0 COMPONENTS program_options random REQUIRED)
 find_package(Threads REQUIRED)
 
 set(Boost_USE_STATIC_LIBS ON)
@@ -51,6 +51,7 @@ set(SRCS
     main.cpp
     forest.cpp
     forest_impl.cpp
+    train.cpp
 )
 
 add_executable(${TARGET_FILE_NAME} WIN32 ${HDRS} ${SRCS})

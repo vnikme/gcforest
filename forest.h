@@ -12,12 +12,15 @@ namespace NGCForest {
     using TForest = std::vector<TTreeImplPtr>;
 
     class TForestCalculator : public TCalculator {
-        private:
-            TForest Forest;
-            TCombinerPtr Combiner;
+        public:
+            TForestCalculator(TForest &&forest, TCombinerPtr combiner);
 
         protected:
             virtual void DoCalculate(const TFeatures &features, TFeatures &result) const;
+
+        private:
+            TForest Forest;
+            TCombinerPtr Combiner;
     };
 
 } // namespace NDecisionTree
