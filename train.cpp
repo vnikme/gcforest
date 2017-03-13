@@ -15,14 +15,9 @@ namespace NGCForest {
 
     namespace {
 
-        template<typename TCondition>
-        std::vector<double> CountClasses(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, TCondition cond) {
+        std::vector<double> CountClasses(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes) {
             std::vector<double> f(classCount);
-            size_t count = 0;
             for (size_t i : indexes) {
-                if (!cond(x[i]))
-                    continue;
-                ++count;
                 f[y[i]] += 1;
             }
             return f;
@@ -39,9 +34,8 @@ namespace NGCForest {
             return res;
         }
 
-        template<typename TCondition>
-        size_t WinnerClass(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, TCondition cond, boost::random::mt19937 &rng) {
-            std::vector<double> f = CountClasses(x, y, classCount, indexes, cond);
+        size_t WinnerClass(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, boost::random::mt19937 &rng) {
+            std::vector<double> f = CountClasses(x, y, classCount, indexes);
             double sum = 1e-38;
             for (double val : f)
                 sum += val;
@@ -92,7 +86,7 @@ namespace NGCForest {
             std::sort(idx.begin(), idx.end(), [&x, &indexes, featureIndex] (size_t a, size_t b) { return x[indexes[a]][featureIndex] < x[indexes[b]][featureIndex]; });
             bool result = false;
             bestThreshold = x[indexes[idx[0]]][featureIndex] - 1.0;
-            std::vector<double> left(classCount), right = CountClasses(x, y, classCount, indexes, [] (const TFeatures &) { return true; });
+            std::vector<double> left(classCount), right = CountClasses(x, y, classCount, indexes);
             bestGiniImpurity = GiniImpurity(right) / 2.0;
             for (size_t i = 0; i + 1 < n; ++i) {
                 size_t prev = indexes[idx[i]], next = indexes[idx[i + 1]];
@@ -152,7 +146,7 @@ namespace NGCForest {
             for (size_t i = 0; i < sampleCount; ++i) {
                 indexes[i] = dist(rng);
             }
-            size_t winClass = WinnerClass(x, y, classCount, indexes, [] (const TFeatures &) { return true; }, rng);
+            size_t winClass = WinnerClass(x, y, classCount, indexes, rng);
             TConstFeaturesPtr oh(OneHot(winClass, classCount));
             TTreeNodePtr root(new TTreeNode(oh));
             std::list<TBucket> queue;
@@ -165,8 +159,8 @@ namespace NGCForest {
                 double threshold = 0.0;
                 std::vector<size_t> leftIndexes, rightIndexes;
                 if (SplitNode(x, y, classCount, item.Indexes, featureIndex, threshold, leftIndexes, rightIndexes, rng)) {
-                    size_t leftWinner = WinnerClass(x, y, classCount, leftIndexes, [] (const TFeatures &) { return true; }, rng);
-                    size_t rightWinner = WinnerClass(x, y, classCount, rightIndexes, [] (const TFeatures &) { return true; }, rng);
+                    size_t leftWinner = WinnerClass(x, y, classCount, leftIndexes, rng);
+                    size_t rightWinner = WinnerClass(x, y, classCount, rightIndexes, rng);
                     TConstFeaturesPtr ohl(OneHot(leftWinner, classCount)), ohr(OneHot(rightWinner, classCount));
                     TTreeNodePtr left(new TTreeNode(ohl)), right(new TTreeNode(ohr));
                     item.Node->SplitNode(featureIndex, threshold, left, right);
