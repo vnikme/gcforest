@@ -30,7 +30,7 @@ void GenerateData(std::vector<TFeatures> &x, std::vector<size_t> &y, size_t coun
                 if (j % 10 == 0) {
                     x[i][j] = 0.5 + noise(rng);
                 } else if (j == 49) {
-                    x[i][j] = x[i][21] - x[i][22];
+                    x[i][j] = x[i][21] - x[i][22] + 0.1;
                 } else {
                     x[i][j] = other(rng);
                 }
@@ -45,7 +45,7 @@ int main() {
     std::vector<size_t> train_y, test_y;
     GenerateData(train_x, train_y, 10000, rng);
     GenerateData(test_x, test_y, 1000, rng);
-    TCalculatorPtr forest = Train(train_x, train_y, 2, 3);
+    TCalculatorPtr forest = Train(train_x, train_y, 2, 100);
     for (size_t i = 0; i < test_x.size(); ++i) {
         TFeatures res = forest->Calculate(test_x[i]);
         std::cout << test_y[i] << "\t" << res[1] << std::endl;
