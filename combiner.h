@@ -17,7 +17,13 @@ namespace NGCForest {
     using TCombinerPtr = std::shared_ptr<TCombiner>;
 
 
-    class TMajorityVote : public TCombiner {
+    class TMajorityVoteCombiner : public TCombiner {
+        protected:
+            virtual void DoCombine(const std::vector<TConstFeaturesPtr> &source, TFeatures &result);
+    };
+
+
+    class TAverageCombiner : public TCombiner {
         protected:
             virtual void DoCombine(const std::vector<TConstFeaturesPtr> &source, TFeatures &result);
     };

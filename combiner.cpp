@@ -11,7 +11,7 @@ namespace NGCForest {
     }
 
 
-    // TMajorityVote
+    // TMajorityVoteCombiner
     namespace {
         size_t ArgMax(const TFeatures &values) {
             size_t res = 0;
@@ -23,11 +23,23 @@ namespace NGCForest {
         }
     }
 
-    void TMajorityVote::DoCombine(const std::vector<TConstFeaturesPtr> &source, TFeatures &result) {
+    void TMajorityVoteCombiner::DoCombine(const std::vector<TConstFeaturesPtr> &source, TFeatures &result) {
         std::fill(result.begin(), result.end(), 0.0);
         for (size_t i = 0; i < source.size(); ++i) {
             size_t indexOfMax = ArgMax(*source[i]);
             result[indexOfMax] += 1.0;
+        }
+        for (double &val : result)
+            val /= source.size();
+    }
+
+
+    // TAverageCombiner
+    void TAverageCombiner::DoCombine(const std::vector<TConstFeaturesPtr> &source, TFeatures &result) {
+        std::fill(result.begin(), result.end(), 0.0);
+        for (size_t i = 0; i < source.size(); ++i) {
+            for (size_t j = 0; j < result.size(); ++j)
+                result[j] += (*(source[i]))[j];
         }
         for (double &val : result)
             val /= source.size();

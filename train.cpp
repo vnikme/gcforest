@@ -34,13 +34,18 @@ namespace NGCForest {
             return res;
         }
 
-        size_t WinnerClass(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, boost::random::mt19937 &rng) {
+        std::vector<double> ClassDistribution(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes) {
             std::vector<double> f = CountClasses(x, y, classCount, indexes);
             double sum = 1e-38;
             for (double val : f)
                 sum += val;
             for (double &val : f)
                 val /= sum;
+            return f;
+        }
+
+        size_t WinnerClass(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, boost::random::mt19937 &rng) {
+            std::vector<double> f(ClassDistribution(x, y, classCount, indexes));
             boost::random::discrete_distribution<> dist(f);
             return dist(rng);
         }
@@ -157,9 +162,8 @@ namespace NGCForest {
             for (size_t i = 0; i < sampleCount; ++i) {
                 indexes[i] = dist(rng);
             }
-            size_t winClass = WinnerClass(x, y, classCount, indexes, rng);
-            TConstFeaturesPtr oh(OneHot(winClass, classCount));
-            TTreeNodePtr root(new TTreeNode(oh));
+            TConstFeaturesPtr distr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, indexes)));
+            TTreeNodePtr root(new TTreeNode(distr));
             std::list<TBucket> queue;
             if (!IsOnlyOneClass(y, indexes))
                 queue.push_back(TBucket(root, std::move(indexes), 0));
@@ -170,10 +174,11 @@ namespace NGCForest {
                 double threshold = 0.0;
                 std::vector<size_t> leftIndexes, rightIndexes;
                 if (SplitNode(x, y, classCount, item.Indexes, featureIndex, threshold, leftIndexes, rightIndexes, rng)) {
-                    size_t leftWinner = WinnerClass(x, y, classCount, leftIndexes, rng);
-                    size_t rightWinner = WinnerClass(x, y, classCount, rightIndexes, rng);
-                    TConstFeaturesPtr ohl(OneHot(leftWinner, classCount)), ohr(OneHot(rightWinner, classCount));
-                    TTreeNodePtr left(new TTreeNode(ohl)), right(new TTreeNode(ohr));
+                    TConstFeaturesPtr leftDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, leftIndexes)));
+                    TConstFeaturesPtr rightDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, rightIndexes)));
+                    //TConstFeaturesPtr leftDistr = OneHot(WinnerClass(x, y, classCount, leftIndexes, rng), classCount);
+                    //TConstFeaturesPtr rightDistr = OneHot(WinnerClass(x, y, classCount, rightIndexes, rng), classCount);
+                    TTreeNodePtr left(new TTreeNode(leftDistr)), right(new TTreeNode(rightDistr));
                     item.Node->SplitNode(featureIndex, threshold, left, right);
                     if (item.Depth < maxDepth && !IsOnlyOneClass(y, leftIndexes))
                         queue.push_back(TBucket(left, std::move(leftIndexes), item.Depth + 1));
@@ -192,7 +197,8 @@ namespace NGCForest {
         TForest forest(treeCount);
         for (size_t i = 0; i < treeCount; ++i)
             forest[i] = TrainOneTree(x, y, classCount, maxDepth, rng);
-        TCombinerPtr combiner(new TMajorityVote);
+        TCombinerPtr combiner(new TAverageCombiner);
+        //TCombinerPtr combiner(new TMajorityVoteCombiner);
         return TCalculatorPtr(new TForestCalculator(std::move(forest), combiner));
     }
 
