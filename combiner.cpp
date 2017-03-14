@@ -38,8 +38,9 @@ namespace NGCForest {
     void TAverageCombiner::DoCombine(const std::vector<TConstFeaturesPtr> &source, TFeatures &result) {
         std::fill(result.begin(), result.end(), 0.0);
         for (size_t i = 0; i < source.size(); ++i) {
-            for (size_t j = 0; j < result.size(); ++j)
+            for (size_t j = 0; j < result.size(); ++j) {
                 result[j] += (*(source[i]))[j];
+            }
         }
         for (double &val : result)
             val /= source.size();

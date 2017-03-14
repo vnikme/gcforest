@@ -45,7 +45,8 @@ int main() {
     std::vector<size_t> train_y, test_y;
     GenerateData(train_x, train_y, 10000, rng);
     GenerateData(test_x, test_y, 1000, rng);
-    TCalculatorPtr forest = Train(train_x, train_y, 2, 20, 1000);
+    //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 20, 1000);
+    TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 20, 1000);
     for (size_t i = 0; i < test_x.size(); ++i) {
         TFeatures res = forest->Calculate(test_x[i]);
         std::cerr << test_y[i] << "\t" << res[1] << std::endl;
