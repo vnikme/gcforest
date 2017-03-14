@@ -42,12 +42,18 @@ link_directories(
 )
 
 set(HDRS
+    combiner.h
     common.h
+    evaluation.h
+    forest.h
+    forest_impl.h
+    train.h
 )
 
 set(SRCS
     combiner.cpp
     common.cpp
+    evaluation.cpp
     main.cpp
     forest.cpp
     forest_impl.cpp
