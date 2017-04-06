@@ -13,7 +13,7 @@ namespace NGCForest {
 
     namespace {
 
-        TFeatures &CalculateOneForest(const TFeatures &features, const TForest &forest, TCombinerPtr combiner, TFeatures &result) {
+        void CalculateOneForest(const TFeatures &features, const TForest &forest, TCombinerPtr combiner, TFeatures &result) {
             std::vector<TConstFeaturesPtr> res(forest.size());
             for (size_t i = 0; i < forest.size(); ++i)
                 res[i] = forest[i]->DoCalculate(features);

@@ -45,8 +45,8 @@ int main() {
     std::mt19937 rng;
     std::vector<TFeatures> train_x, test_x;
     std::vector<size_t> train_y, test_y;
-    GenerateData(train_x, train_y, 100000, rng);
-    GenerateData(test_x, test_y, 10000, rng);
+    GenerateData(train_x, train_y, 10000, rng);
+    GenerateData(test_x, test_y, 1000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
     TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 10, 100, 2);
