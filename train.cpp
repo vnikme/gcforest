@@ -2,13 +2,12 @@
 #include "forest_impl.h"
 #include "train.h"
 
-#include <boost/random.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <ctime>
 #include <iostream>
 #include <list>
+#include <random>
 
 
 namespace NGCForest {
@@ -44,9 +43,9 @@ namespace NGCForest {
             return f;
         }
 
-        size_t WinnerClass(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, boost::random::mt19937 &rng) {
+        size_t WinnerClass(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, std::mt19937 &rng) {
             std::vector<double> f(ClassDistribution(x, y, classCount, indexes));
-            boost::random::discrete_distribution<> dist(f);
+            std::discrete_distribution<> dist(f.begin(), f.end());
             return dist(rng);
         }
 
@@ -124,7 +123,7 @@ namespace NGCForest {
         bool SplitNode(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes,
                        size_t &featureIndex, double &bestThreshold,
                        std::vector<size_t> &leftIndexes, std::vector<size_t> &rightIndexes,
-                       boost::random::mt19937 &rng) {
+                       std::mt19937 &rng) {
             bool result = false;
             double bestGiniImpurity = 0.0;
             //std::bernoulli_distribution bern(0.5);
@@ -158,9 +157,9 @@ namespace NGCForest {
         bool SplitNodeRandom(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes,
                              size_t &featureIndex, double &threshold,
                              std::vector<size_t> &leftIndexes, std::vector<size_t> &rightIndexes,
-                             boost::random::mt19937 &rng) {
+                             std::mt19937 &rng) {
             {
-                boost::random::uniform_int_distribution<> dist(0, x[0].size() - 1);
+                std::uniform_int_distribution<> dist(0, x[0].size() - 1);
                 featureIndex = dist(rng);
             }
             std::vector<double> values(indexes.size());
@@ -169,7 +168,7 @@ namespace NGCForest {
             std::sort(values.begin(), values.end());
             values.erase(std::unique(values.begin(), values.end()), values.end());
             {
-                boost::random::uniform_int_distribution<> dist(0, values.size() - 2);
+                std::uniform_int_distribution<> dist(0, values.size() - 2);
                 size_t k = dist(rng);
                 threshold = (values[k] + values[k + 1]) / 2.0;
             }
@@ -183,9 +182,9 @@ namespace NGCForest {
             return true;
         }
 
-        TTreeImplPtr TrainRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, boost::random::mt19937 &rng) {
+        TTreeImplPtr TrainRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             size_t sampleCount = x.size();
-            boost::random::uniform_int_distribution<> dist(0, sampleCount - 1);
+            std::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
             for (size_t i = 0; i < sampleCount; ++i) {
                 indexes[i] = dist(rng);
@@ -218,9 +217,9 @@ namespace NGCForest {
             return TTreeImplPtr(new TTreeImpl(root));
         }
 
-        TTreeImplPtr TrainFullRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, boost::random::mt19937 &rng) {
+        TTreeImplPtr TrainFullRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             size_t sampleCount = x.size();
-            boost::random::uniform_int_distribution<> dist(0, sampleCount - 1);
+            std::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
             for (size_t i = 0; i < sampleCount; ++i) {
                 indexes[i] = dist(rng);
@@ -262,7 +261,7 @@ namespace NGCForest {
 
     template<typename TTreeTrainer>
     TCalculatorPtr DoTrain(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount, TTreeTrainer treeTrainer) {
-        boost::random::mt19937 rng; //(time(nullptr));
+        std::mt19937 rng; //(time(nullptr));
         TForest forest(treeCount);
         for (size_t i = 0; i < treeCount; ++i)
             forest[i] = treeTrainer(x, y, classCount, maxDepth, rng);
@@ -280,7 +279,7 @@ namespace NGCForest {
     }
 
     TCalculatorPtr TrainCascadeForest(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount, size_t levelCount) {
-        boost::random::mt19937 rng; //(time(nullptr));
+        std::mt19937 rng; //(time(nullptr));
         TCascadeForest cascade(levelCount, TForests(4, TForest(treeCount)));
         TCombinerPtr combiner(new TAverageCombiner);
         std::vector<std::vector<TFeatures>> prevLevel(x.size(), std::vector<TFeatures>(4));

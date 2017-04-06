@@ -1,14 +1,14 @@
 #include "evaluation.h"
 #include "train.h"
 
-#include <boost/random.hpp>
 #include <iostream>
+#include <random>
 #include <vector>
 
 
 using namespace NGCForest;
 
-void GenerateData(std::vector<TFeatures> &x, std::vector<size_t> &y, size_t count, boost::random::mt19937 &rng) {
+void GenerateData(std::vector<TFeatures> &x, std::vector<size_t> &y, size_t count, std::mt19937 &rng) {
     std::uniform_real_distribution<double> noise(-0.1, 0.1), other(0.0, 1.0);
     std::bernoulli_distribution answer(0.3);
     x.resize(count);
@@ -42,7 +42,7 @@ void GenerateData(std::vector<TFeatures> &x, std::vector<size_t> &y, size_t coun
 }
 
 int main() {
-    boost::random::mt19937 rng;
+    std::mt19937 rng;
     std::vector<TFeatures> train_x, test_x;
     std::vector<size_t> train_y, test_y;
     GenerateData(train_x, train_y, 100000, rng);

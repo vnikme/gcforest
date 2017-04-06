@@ -17,28 +17,28 @@ else()
     message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
-find_package(Boost 1.54.0 COMPONENTS program_options random REQUIRED)
+#find_package(Boost 1.54.0 COMPONENTS program_options random REQUIRED)
 find_package(Threads REQUIRED)
 
-set(Boost_USE_STATIC_LIBS ON)
+#set(Boost_USE_STATIC_LIBS ON)
 
 SET(USED_LIBS
-    ${Boost_LIBRARIES}
+#    ${Boost_LIBRARIES}
     ${CMAKE_DL_LIBS}
     pthread
 )
 
-if(NOT Boost_FOUND)
-    message(SEND_ERROR "Boost not found! :(")
-    return()
-endif()
+#if(NOT Boost_FOUND)
+#    message(SEND_ERROR "Boost not found! :(")
+#    return()
+#endif()
 
 include_directories(
-    ${Boost_INCLUDE_DIRS}
+#    ${Boost_INCLUDE_DIRS}
 )
 
 link_directories(
-    ${Boost_LIBRARY_DIRS}
+#    ${Boost_LIBRARY_DIRS}
 )
 
 set(HDRS

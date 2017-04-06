@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <vector>
-#include <boost/noncopyable.hpp>
 
 
 namespace NGCForest {
@@ -11,8 +10,15 @@ namespace NGCForest {
     using TConstFeaturesPtr = std::shared_ptr<const TFeatures>;
     using TMiniBatch = std::vector<TFeatures>;
 
-    class TCalculator : private boost::noncopyable {
+    class TCalculator {
+        private:
+            TCalculator(const TCalculator &);
+            TCalculator &operator = (const TCalculator &);
+            TCalculator(TCalculator &&);
+            TCalculator &operator = (TCalculator &&);
+
         public:
+            TCalculator() {}
             virtual ~TCalculator() {}
             TFeatures Calculate(const TFeatures &features) const;
             TMiniBatch Calculate(const TMiniBatch &minibatch) const;
