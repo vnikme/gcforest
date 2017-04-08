@@ -167,6 +167,8 @@ namespace NGCForest {
                 values[i] = x[indexes[i]][featureIndex];
             std::sort(values.begin(), values.end());
             values.erase(std::unique(values.begin(), values.end()), values.end());
+			if (values.size() < 2)
+				return false;
             {
                 std::uniform_int_distribution<> dist(0, values.size() - 2);
                 size_t k = dist(rng);
@@ -184,6 +186,8 @@ namespace NGCForest {
 
         TTreeImplPtr TrainRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             size_t sampleCount = x.size();
+			if (sampleCount > 10000)
+				sampleCount = 10000 + (sampleCount - 10000) / 10;
             std::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
             for (size_t i = 0; i < sampleCount; ++i) {
@@ -219,6 +223,8 @@ namespace NGCForest {
 
         TTreeImplPtr TrainFullRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             size_t sampleCount = x.size();
+			if (sampleCount > 10000)
+				sampleCount = 10000 + (sampleCount - 10000) / 10;
             std::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
             for (size_t i = 0; i < sampleCount; ++i) {

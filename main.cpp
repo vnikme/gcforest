@@ -2,7 +2,10 @@
 #include "train.h"
 
 #include <iostream>
+#include <fstream>
 #include <random>
+#include <sstream>
+#include <string>
 #include <vector>
 
 
@@ -41,15 +44,45 @@ void GenerateData(std::vector<TFeatures> &x, std::vector<size_t> &y, size_t coun
     }
 }
 
+static void ReadPool(std::vector<TFeatures> &x, std::vector<size_t> &y, const std::string &path) {
+	std::ifstream file(path);
+	int count = 0;
+	while (!file.eof()) {
+		std::string line;
+		std::getline(file, line);
+		std::istringstream str(line);
+		std::string item;
+		std::getline(str, item, '\t');
+		if (item == "EventId")
+			continue;
+		if (++count >= 500000)
+			return;
+		std::getline(str, item, '\t');
+		y.push_back(0);
+		str >> y.back();
+		std::getline(str, item, '\t');
+		x.push_back(TFeatures());
+		TFeatures &features = x.back();
+		while (!str.eof()) {
+			features.push_back(0.0);
+			str >> features.back();
+		}
+	}
+}
+
 int main() {
     std::mt19937 rng;
     std::vector<TFeatures> train_x, test_x;
     std::vector<size_t> train_y, test_y;
-    GenerateData(train_x, train_y, 10000, rng);
-    GenerateData(test_x, test_y, 1000, rng);
+	ReadPool(train_x, train_y, "../train.tsv");
+    //GenerateData(train_x, train_y, 10000, rng);
+    //GenerateData(test_x, test_y, 1000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 10, 100, 2);
+    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 6, 1000, 10);
+	train_x.clear();
+	train_y.clear();
+	ReadPool(test_x, test_y, "../test.tsv");
     std::vector<std::pair<int, double>> answers(test_x.size());
     for (size_t i = 0; i < test_x.size(); ++i) {
         TFeatures res = forest->Calculate(test_x[i]);
@@ -59,4 +92,3 @@ int main() {
     std::cout << "AUC: " << AUC(std::move(answers)) << std::endl;
     return 0;
 }
-
