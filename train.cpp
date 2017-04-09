@@ -84,6 +84,7 @@ namespace NGCForest {
             if (indexes.size() < 2)
                 return false;
             size_t n = indexes.size();
+            //std::cout << "\t" << n << std::endl;
             std::vector<size_t> idx(n);
             for (size_t i = 0; i < n; ++i)
                 idx[i] = i;
@@ -167,8 +168,8 @@ namespace NGCForest {
                 values[i] = x[indexes[i]][featureIndex];
             std::sort(values.begin(), values.end());
             values.erase(std::unique(values.begin(), values.end()), values.end());
-			if (values.size() < 2)
-				return false;
+            if (values.size() < 2)
+                return false;
             {
                 std::uniform_int_distribution<> dist(0, values.size() - 2);
                 size_t k = dist(rng);
@@ -185,9 +186,11 @@ namespace NGCForest {
         }
 
         TTreeImplPtr TrainRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
+            time_t startTime = time(nullptr);
             size_t sampleCount = x.size();
-			if (sampleCount > 10000)
-				sampleCount = 10000 + (sampleCount - 10000) / 10;
+            if (sampleCount > 10000)
+                sampleCount = 10000 + (sampleCount - 10000) / 10;
+            //std::cout << "\tTrain random tree, sampleCount: " << sampleCount << ", time: " << time(nullptr) - startTime << std::endl;
             std::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
             for (size_t i = 0; i < sampleCount; ++i) {
@@ -198,7 +201,9 @@ namespace NGCForest {
             std::list<TBucket> queue;
             if (!IsOnlyOneClass(y, indexes))
                 queue.push_back(TBucket(root, std::move(indexes), 0));
+            int cnt = 0;
             while (!queue.empty()) {
+                ++cnt;
                 TBucket item(std::move(queue.front()));
                 queue.pop_front();
                 size_t featureIndex = 0;
@@ -217,14 +222,18 @@ namespace NGCForest {
                         queue.push_back(TBucket(right, std::move(rightIndexes), item.Depth + 1));
                 }
             }
+            //std::cout << cnt << std::endl;
+            //std::cout << "\tDone, time: " << time(nullptr) - startTime << std::endl;
             //std::cout << std::endl;
             return TTreeImplPtr(new TTreeImpl(root));
         }
 
         TTreeImplPtr TrainFullRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
+            time_t startTime = time(nullptr);
             size_t sampleCount = x.size();
-			if (sampleCount > 10000)
-				sampleCount = 10000 + (sampleCount - 10000) / 10;
+            if (sampleCount > 10000)
+                sampleCount = 10000 + (sampleCount - 10000) / 10;
+            //std::cout << "\tTrain full random tree, sampleCount: " << sampleCount << ", time: " << time(nullptr) - startTime << std::endl;
             std::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
             for (size_t i = 0; i < sampleCount; ++i) {
@@ -259,6 +268,7 @@ namespace NGCForest {
                         queue.push_back(TBucket(right, std::move(rightIndexes), item.Depth + 1));
                 }
             }
+            //std::cout << "\tDone, time: " << time(nullptr) - startTime << std::endl;
             //std::cout << std::endl;
             return TTreeImplPtr(new TTreeImpl(root));
         }
@@ -285,11 +295,13 @@ namespace NGCForest {
     }
 
     TCalculatorPtr TrainCascadeForest(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount, size_t levelCount) {
+        time_t startTime = time(nullptr);
         std::mt19937 rng; //(time(nullptr));
         TCascadeForest cascade(levelCount, TForests(4, TForest(treeCount)));
         TCombinerPtr combiner(new TAverageCombiner);
         std::vector<std::vector<TFeatures>> prevLevel(x.size(), std::vector<TFeatures>(4));
         for (size_t i = 0; i < levelCount; ++i) {
+            std::cout << "Train level: " << i << ", time: " << time(nullptr) - startTime << std::endl;
             std::vector<TFeatures> features(x);
             for (size_t j = 0; j < x.size(); ++j) {
                 for (const TFeatures &prev : prevLevel[j]) {
@@ -302,6 +314,7 @@ namespace NGCForest {
                     cascade[i][2 + j][k] = TrainFullRandomTree(features, y, classCount, maxDepth, rng);
                 }
             }
+            std::cout << "Level trained, calculating features for next level, time: " << time(nullptr) - startTime  << std::endl;
             std::vector<TCalculatorPtr> calcs(4);
             for (size_t j = 0; j < 4; ++j) {
                 calcs[j] = TCalculatorPtr(new TForestCalculator(TForest(cascade[i][j]), combiner));
@@ -311,6 +324,7 @@ namespace NGCForest {
                     prevLevel[j][k] = calcs[k]->Calculate(features[j]);
                 }
             }
+            std::cout << "Done, time: " << time(nullptr) - startTime  << std::endl << std::endl;
         }
         return TCalculatorPtr(new TCascadeForestCalculator(std::move(cascade), combiner));
     }
