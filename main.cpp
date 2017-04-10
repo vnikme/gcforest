@@ -55,7 +55,7 @@ static void ReadPool(std::vector<TFeatures> &x, std::vector<size_t> &y, const st
         std::getline(str, item, '\t');
         if (item == "EventId")
             continue;
-        if (++count >= 500000)
+        if (++count >= 5000)
             return;
         std::getline(str, item, '\t');
         y.push_back(0);
@@ -74,15 +74,15 @@ int main() {
     std::mt19937 rng;
     std::vector<TFeatures> train_x, test_x;
     std::vector<size_t> train_y, test_y;
-    //ReadPool(train_x, train_y, "../train.tsv");
-    GenerateData(train_x, train_y, 1000, rng);
+    ReadPool(train_x, train_y, "../train.tsv");
+    //GenerateData(train_x, train_y, 1000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
     TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 6, 1000, 10);
     train_x.clear();
     train_y.clear();
-    //ReadPool(test_x, test_y, "../test.tsv");
-    GenerateData(test_x, test_y, 1000, rng);
+    ReadPool(test_x, test_y, "../test.tsv");
+    //GenerateData(test_x, test_y, 1000, rng);
     std::vector<std::pair<int, double>> answers(test_x.size());
     for (size_t i = 0; i < test_x.size(); ++i) {
         TFeatures res = forest->Calculate(test_x[i]);

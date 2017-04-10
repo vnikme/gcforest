@@ -14,10 +14,10 @@ namespace NGCForest {
 
     namespace {
 
-        std::vector<double> CountClasses(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes) {
+        std::vector<double> CountClasses(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, size_t begin, size_t end) {
             std::vector<double> f(classCount);
-            for (size_t i : indexes) {
-                f[y[i]] += 1;
+            for (size_t i = begin; i < end; ++i) {
+                f[y[indexes[i]]] += 1;
             }
             return f;
         }
@@ -33,8 +33,8 @@ namespace NGCForest {
             return res;
         }
 
-        std::vector<double> ClassDistribution(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes) {
-            std::vector<double> f = CountClasses(x, y, classCount, indexes);
+        std::vector<double> ClassDistribution(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, size_t begin, size_t end) {
+            std::vector<double> f = CountClasses(x, y, classCount, indexes, begin, end);
             double sum = 1e-38;
             for (double val : f)
                 sum += val;
@@ -43,17 +43,17 @@ namespace NGCForest {
             return f;
         }
 
-        size_t WinnerClass(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, std::mt19937 &rng) {
-            std::vector<double> f(ClassDistribution(x, y, classCount, indexes));
+        size_t WinnerClass(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, size_t begin, size_t end, std::mt19937 &rng) {
+            std::vector<double> f(ClassDistribution(x, y, classCount, indexes, begin, end));
             std::discrete_distribution<> dist(f.begin(), f.end());
             return dist(rng);
         }
 
-        bool IsOnlyOneClass(const std::vector<size_t> &y, const std::vector<size_t> indexes) {
-            if (indexes.empty())
+        bool IsOnlyOneClass(const std::vector<size_t> &y, const std::vector<size_t> indexes, size_t begin, size_t end) {
+            if (begin == end)
                 return true;
-            size_t firstClass = y[indexes[0]];
-            for (size_t i = 1; i < indexes.size(); ++i) {
+            size_t firstClass = y[indexes[begin]];
+            for (size_t i = begin + 1; i < end; ++i) {
                 if (y[indexes[i]] != firstClass)
                     return false;
             }
@@ -68,30 +68,32 @@ namespace NGCForest {
 
         struct TBucket {
             TTreeNodePtr Node;
-            std::vector<size_t> Indexes;
-            size_t Depth;
+            std::vector<size_t> &Indexes;
+			size_t Begin, End, Depth;
 
-            TBucket(TTreeNodePtr node, std::vector<size_t> &&indexes, size_t depth)
+            TBucket(TTreeNodePtr node, std::vector<size_t> &indexes, size_t begin, size_t end, size_t depth)
                 : Node(node)
-                , Indexes(std::move(indexes))
+                , Indexes(indexes)
+				, Begin(begin)
+				, End(end)
                 , Depth(depth)
             {
             }
         };
 
         // returns best Gini Inpurity
-        bool BestSplitForFeature(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, size_t featureIndex, double &bestThreshold, double &bestGiniImpurity) {
-            if (indexes.size() < 2)
+        bool BestSplitForFeature(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes, size_t begin, size_t end, size_t featureIndex, double &bestThreshold, double &bestGiniImpurity) {
+			size_t n = end - begin;
+            if (n < 2)
                 return false;
-            size_t n = indexes.size();
             //std::cout << "\t" << n << std::endl;
             std::vector<size_t> idx(n);
             for (size_t i = 0; i < n; ++i)
-                idx[i] = i;
+                idx[i] = i + begin;
             std::sort(idx.begin(), idx.end(), [&x, &indexes, featureIndex] (size_t a, size_t b) { return x[indexes[a]][featureIndex] < x[indexes[b]][featureIndex]; });
             bool result = false, median = false;
             bestThreshold = x[indexes[idx[0]]][featureIndex] - 1.0;
-            std::vector<double> left(classCount), right = CountClasses(x, y, classCount, indexes);
+            std::vector<double> left(classCount), right = CountClasses(x, y, classCount, indexes, begin, end);
             bestGiniImpurity = GiniImpurity(right) / 2.0;
             double medianThreshold = bestThreshold, medianGini = bestGiniImpurity;
             for (size_t i = 0; i + 1 < n; ++i) {
@@ -121,10 +123,23 @@ namespace NGCForest {
             return result;
         }
 
-        bool SplitNode(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes,
-                       size_t &featureIndex, double &bestThreshold,
-                       std::vector<size_t> &leftIndexes, std::vector<size_t> &rightIndexes,
-                       std::mt19937 &rng) {
+        void SplitIndexes(const std::vector<TFeatures> &x, size_t featureIndex, double threshold, std::vector<size_t> &indexes, size_t begin, size_t end, size_t &rightBegin) {
+            size_t a = begin, b = end;
+            while (a < b) {
+                size_t &left = indexes[a], &right = indexes[b - 1];
+                if (x[left][featureIndex] < threshold)
+                    ++a;
+                else if (x[right][featureIndex] >= threshold)
+                    --b;
+                else {
+                    std::swap(left, right);
+                }
+            }
+            rightBegin = b;
+        }
+
+        bool SplitNode(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, std::vector<size_t> &indexes, size_t begin, size_t end,
+                       size_t &featureIndex, double &bestThreshold, size_t &rightBegin, std::mt19937 &rng) {
             bool result = false;
             double bestGiniImpurity = 0.0;
             //std::bernoulli_distribution bern(0.5);
@@ -133,7 +148,7 @@ namespace NGCForest {
                 if (!bern(rng))
                     continue;
                 double threshold = 0.0, giniImpurity = 0.0;
-                bool splitFound = BestSplitForFeature(x, y, classCount, indexes, i, threshold, giniImpurity);
+                bool splitFound = BestSplitForFeature(x, y, classCount, indexes, begin, end, i, threshold, giniImpurity);
                 if (!splitFound)
                     continue;
                 if (!result || giniImpurity < bestGiniImpurity) {
@@ -145,20 +160,13 @@ namespace NGCForest {
             }
             if (!result)
                 return false;
+            SplitIndexes(x, featureIndex, bestThreshold, indexes, begin, end, rightBegin);
             //std::cout << "Best:\t" << featureIndex << "\t" << bestThreshold << "\t" << bestGiniImpurity << std::endl;
-            for (size_t i : indexes) {
-                if (x[i][featureIndex] < bestThreshold)
-                    leftIndexes.push_back(i);
-                else
-                    rightIndexes.push_back(i);
-            }
             return true;
         }
 
-        bool SplitNodeRandom(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, const std::vector<size_t> &indexes,
-                             size_t &featureIndex, double &threshold,
-                             std::vector<size_t> &leftIndexes, std::vector<size_t> &rightIndexes,
-                             std::mt19937 &rng) {
+        bool SplitNodeRandom(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, std::vector<size_t> &indexes, size_t begin, size_t end,
+                             size_t &featureIndex, double &threshold, size_t &rightBegin, std::mt19937 &rng) {
             {
                 std::uniform_int_distribution<> dist(0, x[0].size() - 1);
                 featureIndex = dist(rng);
@@ -175,13 +183,8 @@ namespace NGCForest {
                 size_t k = dist(rng);
                 threshold = (values[k] + values[k + 1]) / 2.0;
             }
+            SplitIndexes(x, featureIndex, threshold, indexes, begin, end, rightBegin);
             //std::cout << featureIndex << "\t" << threshold << std::endl;
-            for (size_t i : indexes) {
-                if (x[i][featureIndex] < threshold)
-                    leftIndexes.push_back(i);
-                else
-                    rightIndexes.push_back(i);
-            }
             return true;
         }
 
@@ -196,11 +199,11 @@ namespace NGCForest {
             for (size_t i = 0; i < sampleCount; ++i) {
                 indexes[i] = dist(rng);
             }
-            TConstFeaturesPtr distr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, indexes)));
+            TConstFeaturesPtr distr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, indexes, 0, indexes.size())));
             TTreeNodePtr root(new TTreeNode(distr));
             std::list<TBucket> queue;
-            if (!IsOnlyOneClass(y, indexes))
-                queue.push_back(TBucket(root, std::move(indexes), 0));
+            if (!IsOnlyOneClass(y, indexes, 0, indexes.size()))
+                queue.push_back(TBucket(root, indexes, 0, indexes.size(), 0));
             int cnt = 0;
             while (!queue.empty()) {
                 ++cnt;
@@ -208,18 +211,18 @@ namespace NGCForest {
                 queue.pop_front();
                 size_t featureIndex = 0;
                 double threshold = 0.0;
-                std::vector<size_t> leftIndexes, rightIndexes;
-                if (SplitNode(x, y, classCount, item.Indexes, featureIndex, threshold, leftIndexes, rightIndexes, rng)) {
-                    TConstFeaturesPtr leftDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, leftIndexes)));
-                    TConstFeaturesPtr rightDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, rightIndexes)));
-                    //TConstFeaturesPtr leftDistr = OneHot(WinnerClass(x, y, classCount, leftIndexes, rng), classCount);
-                    //TConstFeaturesPtr rightDistr = OneHot(WinnerClass(x, y, classCount, rightIndexes, rng), classCount);
+				size_t rightBegin = item.End;
+                if (SplitNode(x, y, classCount, item.Indexes, item.Begin, item.End, featureIndex, threshold, rightBegin, rng)) {
+                    TConstFeaturesPtr leftDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, indexes, item.Begin, rightBegin)));
+                    TConstFeaturesPtr rightDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, indexes, rightBegin, item.End)));
+                    //TConstFeaturesPtr leftDistr = OneHot(WinnerClass(x, y, classCount, leftIndexes, item.Begin, rightBegin, rng), classCount);
+                    //TConstFeaturesPtr rightDistr = OneHot(WinnerClass(x, y, classCount, rightIndexes, rightBegin, item.End, rng), classCount);
                     TTreeNodePtr left(new TTreeNode(leftDistr)), right(new TTreeNode(rightDistr));
                     item.Node->SplitNode(featureIndex, threshold, left, right);
-                    if (item.Depth + 1 < maxDepth && !IsOnlyOneClass(y, leftIndexes))
-                        queue.push_back(TBucket(left, std::move(leftIndexes), item.Depth + 1));
-                    if (item.Depth + 1 < maxDepth && !IsOnlyOneClass(y, rightIndexes))
-                        queue.push_back(TBucket(right, std::move(rightIndexes), item.Depth + 1));
+                    if (item.Depth + 1 < maxDepth && !IsOnlyOneClass(y, indexes, item.Begin, rightBegin))
+                        queue.push_back(TBucket(left, indexes, item.Begin, rightBegin, item.Depth + 1));
+                    if (item.Depth + 1 < maxDepth && !IsOnlyOneClass(y, indexes, rightBegin, item.End))
+                        queue.push_back(TBucket(right, indexes, rightBegin, item.End, item.Depth + 1));
                 }
             }
             //std::cout << cnt << std::endl;
@@ -239,33 +242,33 @@ namespace NGCForest {
             for (size_t i = 0; i < sampleCount; ++i) {
                 indexes[i] = dist(rng);
             }
-            TConstFeaturesPtr wholeDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, indexes)));
+            TConstFeaturesPtr wholeDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, indexes, 0, indexes.size())));
             TTreeNodePtr root(new TTreeNode(wholeDistr));
             std::list<TBucket> queue;
-            if (!IsOnlyOneClass(y, indexes))
-                queue.push_back(TBucket(root, std::move(indexes), 0));
+            if (!IsOnlyOneClass(y, indexes, 0, indexes.size()))
+                queue.push_back(TBucket(root, indexes, 0, indexes.size(), 0));
             while (!queue.empty()) {
                 TBucket item(std::move(queue.front()));
                 queue.pop_front();
                 size_t featureIndex = 0;
                 double threshold = 0.0;
-                std::vector<size_t> leftIndexes, rightIndexes;
-                if (SplitNodeRandom(x, y, classCount, item.Indexes, featureIndex, threshold, leftIndexes, rightIndexes, rng)) {
+                size_t rightBegin = item.End;
+                if (SplitNodeRandom(x, y, classCount, item.Indexes, item.Begin, item.End, featureIndex, threshold, rightBegin, rng)) {
                     TConstFeaturesPtr leftDistr = wholeDistr, rightDistr = wholeDistr;
-                    if (item.Depth + 1 >= maxDepth || IsOnlyOneClass(y, leftIndexes)) {
-                        leftDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, leftIndexes)));
+                    if (item.Depth + 1 >= maxDepth || IsOnlyOneClass(y, indexes, item.Begin, rightBegin)) {
+                        leftDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, indexes, item.Begin, rightBegin)));
                         //std::cout << "Gini left: " << GiniImpurity(*leftDistr) << std::endl;
                     }
-                    if (item.Depth + 1 >= maxDepth || IsOnlyOneClass(y, rightIndexes)) {
-                        rightDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, rightIndexes)));
+                    if (item.Depth + 1 >= maxDepth || IsOnlyOneClass(y, indexes, rightBegin, item.End)) {
+                        rightDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(x, y, classCount, indexes, rightBegin, item.End)));
                         //std::cout << "Gini right: " << GiniImpurity(*rightDistr) << std::endl;
                     }
                     TTreeNodePtr left(new TTreeNode(leftDistr)), right(new TTreeNode(rightDistr));
                     item.Node->SplitNode(featureIndex, threshold, left, right);
-                    if (item.Depth < maxDepth && !IsOnlyOneClass(y, leftIndexes))
-                        queue.push_back(TBucket(left, std::move(leftIndexes), item.Depth + 1));
-                    if (item.Depth < maxDepth && !IsOnlyOneClass(y, rightIndexes))
-                        queue.push_back(TBucket(right, std::move(rightIndexes), item.Depth + 1));
+                    if (item.Depth < maxDepth && !IsOnlyOneClass(y, indexes, item.Begin, rightBegin))
+                        queue.push_back(TBucket(left, indexes, item.Begin, rightBegin, item.Depth + 1));
+                    if (item.Depth < maxDepth && !IsOnlyOneClass(y, indexes, rightBegin, item.End))
+                        queue.push_back(TBucket(right, indexes, rightBegin, item.End, item.Depth + 1));
                 }
             }
             //std::cout << "\tDone, time: " << time(nullptr) - startTime << std::endl;
