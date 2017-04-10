@@ -136,6 +136,8 @@ namespace NGCForest {
                 }
             }
             rightBegin = b;
+            //std::sort(indexes.begin() + begin, indexes.begin() + rightBegin);
+            //std::sort(indexes.begin() + rightBegin, indexes.begin() + end);
         }
 
         bool SplitNode(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, std::vector<size_t> &indexes, size_t begin, size_t end,
@@ -171,9 +173,10 @@ namespace NGCForest {
                 std::uniform_int_distribution<> dist(0, x[0].size() - 1);
                 featureIndex = dist(rng);
             }
-            std::vector<double> values(indexes.size());
-            for (size_t i = 0; i < indexes.size(); ++i)
-                values[i] = x[indexes[i]][featureIndex];
+            size_t n = end - begin;
+            std::vector<double> values(n);
+            for (size_t i = 0; i < n; ++i)
+                values[i] = x[indexes[i + begin]][featureIndex];
             std::sort(values.begin(), values.end());
             values.erase(std::unique(values.begin(), values.end()), values.end());
             if (values.size() < 2)
