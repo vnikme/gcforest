@@ -45,9 +45,9 @@ void GenerateData(std::vector<TFeatures> &x, std::vector<size_t> &y, size_t coun
     }
 }
 
-static void ReadPool(std::vector<TFeatures> &x, std::vector<size_t> &y, const std::string &path) {
+static void ReadPool(std::vector<TFeatures> &x, std::vector<size_t> &y, const std::string &path, double prob, std::mt19937 &rng) {
+    std::bernoulli_distribution bern(prob);
     std::ifstream file(path);
-    int count = 0;
     while (!file.eof()) {
             std::string line;
         std::getline(file, line);
@@ -56,8 +56,8 @@ static void ReadPool(std::vector<TFeatures> &x, std::vector<size_t> &y, const st
         std::getline(str, item, '\t');
         if (item == "EventId")
             continue;
-        if (++count >= 5000)
-            return;
+        if (!bern(rng))
+            continue;
         std::getline(str, item, '\t');
         y.push_back(0);
         str >> y.back();
@@ -68,6 +68,10 @@ static void ReadPool(std::vector<TFeatures> &x, std::vector<size_t> &y, const st
             features.push_back(0.0);
             str >> features.back();
         }
+        if (features.empty()) {
+            x.pop_back();
+            y.pop_back();
+        }
     }
 }
 
@@ -75,15 +79,16 @@ int main() {
     std::mt19937 rng;
     std::vector<TFeatures> train_x, test_x;
     std::vector<size_t> train_y, test_y;
-    //ReadPool(train_x, train_y, "../train.tsv");
-    GenerateData(train_x, train_y, 100000, rng);
+    ReadPool(train_x, train_y, "../train.tsv", 0.2, rng);
+    std::cout << train_x.size() << std::endl;
+    //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
     TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 6, 1000, 10);
     train_x.clear();
     train_y.clear();
-    //ReadPool(test_x, test_y, "../test.tsv");
-    GenerateData(test_x, test_y, 10000, rng);
+    ReadPool(test_x, test_y, "../test.tsv", 0.001, rng);
+    //GenerateData(test_x, test_y, 10000, rng);
     for (size_t k = 1; k <= 10; ++k) {
         TCalculatorPtr frst = dynamic_cast<TCascadeForestCalculator*>(forest.get())->GetSlice(k);
         std::vector<std::pair<int, double>> answers(test_x.size());
