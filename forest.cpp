@@ -34,6 +34,14 @@ namespace NGCForest {
     {
     }
 
+    TCalculatorPtr TCascadeForestCalculator::GetSlice(size_t k) const {
+        TCascadeForest forest;
+        forest.reserve(k);
+        for (size_t i = 0; i < k && i < CascadeForest.size(); ++i)
+            forest.push_back(CascadeForest[i]);
+        return std::make_shared<TCascadeForestCalculator>(std::move(forest), Combiner);
+    }
+
     namespace {
 
         void CalculateOneLevel(const TFeatures &features, const TForests &level, TCombinerPtr combiner, std::vector<TFeatures> &result) {
