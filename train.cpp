@@ -305,7 +305,7 @@ namespace NGCForest {
         std::mt19937 rng; //(time(nullptr));
         TCascadeForest cascade(levelCount, TForests(4, TForest(treeCount)));
         TCombinerPtr combiner(new TAverageCombiner);
-        std::vector<std::vector<TFeatures>> prevLevel(x.size(), std::vector<TFeatures>(4));
+        std::vector<std::vector<TFeatures>> prevLevel(4, std::vector<TFeatures>(x.size()));
         for (size_t i = 0; i < levelCount; ++i) {
             std::cout << "Train level: " << i << ", time: " << time(nullptr) - startTime << std::endl;
             std::vector<TFeatures> features(x);
@@ -314,6 +314,7 @@ namespace NGCForest {
                     features[j].insert(features[j].end(), prev.begin(), prev.end());
                 }
             }
+            features = Transpose(features);
             for (size_t j = 0; j < 2; ++j) {
                 for (size_t k = 0; k < treeCount; ++k) {
                     cascade[i][j][k] = TrainRandomTree(features, y, classCount, maxDepth, rng);
@@ -325,6 +326,7 @@ namespace NGCForest {
             for (size_t j = 0; j < 4; ++j) {
                 calcs[j] = TCalculatorPtr(new TForestCalculator(TForest(cascade[i][j]), combiner));
             }
+            features = Transpose(features);
             for (size_t j = 0; j < x.size(); ++j) {
                 for (size_t k = 0; k < 4; ++k) {
                     prevLevel[j][k] = calcs[k]->Calculate(features[j]);
@@ -336,4 +338,3 @@ namespace NGCForest {
     }
 
 } // namespace NGCForest
-

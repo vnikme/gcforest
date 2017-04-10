@@ -2,6 +2,15 @@
 
 namespace NGCForest {
 
+    TMiniBatch Transpose(const TMiniBatch &features) {
+        size_t rows = features.size(), cols = features.front().size();
+        TMiniBatch result(cols, TFeatures(rows));
+        for (size_t i = 0; i < cols; ++i)
+            for (size_t j = 0; j < rows; ++j)
+                result[i][j] = features[j][i];
+        return result;
+    }
+
     // TCalculator
     TFeatures TCalculator::Calculate(const TFeatures &features) const {
         TFeatures result;

@@ -10,6 +10,8 @@ namespace NGCForest {
     using TConstFeaturesPtr = std::shared_ptr<const TFeatures>;
     using TMiniBatch = std::vector<TFeatures>;
 
+    TMiniBatch Transpose(const TMiniBatch &features);
+
     class TCalculator {
         private:
             TCalculator(const TCalculator &);
