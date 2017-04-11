@@ -145,7 +145,7 @@ namespace NGCForest {
             bool result = false;
             double bestGiniImpurity = 0.0;
             //std::bernoulli_distribution bern(0.5);
-            std::bernoulli_distribution bern(1.0 / sqrt(x[0].size() + 0.0));
+            std::bernoulli_distribution bern(1.0 / sqrt(x.size() + 0.0));
             for (size_t i = 0; i < x.size(); ++i) {
                 if (!bern(rng))
                     continue;
@@ -163,7 +163,7 @@ namespace NGCForest {
             if (!result)
                 return false;
             SplitIndexes(x[featureIndex], bestThreshold, indexes, begin, end, rightBegin);
-            //std::cout << "Best:\t" << featureIndex << "\t" << bestThreshold << "\t" << bestGiniImpurity << std::endl;
+            //std::cout << "Best:\t" << featureIndex << "\t" << bestThreshold << "\t" << bestGiniImpurity << "\t" << begin << "\t" << rightBegin << "\t" << end << std::endl;
             return true;
         }
 
@@ -319,7 +319,10 @@ namespace NGCForest {
             for (size_t j = 0; j < 2; ++j) {
                 for (size_t k = 0; k < treeCount; ++k) {
                     cascade[i][j][k] = TrainRandomTree(features, y, classCount, maxDepth, rng);
-                    cascade[i][2 + j][k] = TrainFullRandomTree(features, y, classCount, maxDepth, rng);
+                    if (i + 1 < levelCount)
+                        cascade[i][2 + j][k] = TrainFullRandomTree(features, y, classCount, maxDepth, rng);
+                    else
+                        cascade[i][2 + j][k] = TrainRandomTree(features, y, classCount, maxDepth, rng);
                 }
             }
             std::cout << "Level trained, calculating features for next level, time: " << time(nullptr) - startTime  << std::endl;

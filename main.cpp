@@ -79,17 +79,18 @@ int main() {
     std::mt19937 rng;
     std::vector<TFeatures> train_x, test_x;
     std::vector<size_t> train_y, test_y;
-    ReadPool(train_x, train_y, "../train.tsv", 0.2, rng);
+    ReadPool(train_x, train_y, "../train.tsv", 0.1, rng);
     std::cout << train_x.size() << std::endl;
     //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 6, 1000, 10);
+    constexpr size_t levelCount = 30;
+    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 8, 100, levelCount);
     train_x.clear();
     train_y.clear();
-    ReadPool(test_x, test_y, "../test.tsv", 0.001, rng);
+    ReadPool(test_x, test_y, "../test.tsv", 0.01, rng);
     //GenerateData(test_x, test_y, 10000, rng);
-    for (size_t k = 1; k <= 10; ++k) {
+    for (size_t k = 1; k <= levelCount; ++k) {
         TCalculatorPtr frst = dynamic_cast<TCascadeForestCalculator*>(forest.get())->GetSlice(k);
         std::vector<std::pair<int, double>> answers(test_x.size());
         for (size_t i = 0; i < test_x.size(); ++i) {
@@ -97,7 +98,7 @@ int main() {
             answers[i] = std::make_pair(test_y[i], res[1]);
             //std::cerr << test_y[i] << "\t" << res[1] << std::endl;
         }
-        std::cout << "AUC: " << AUC(std::move(answers)) << std::endl;
+        std::cout << "AUC " << k << ": " << AUC(std::move(answers)) << std::endl;
     }
     return 0;
 }
