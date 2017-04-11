@@ -1,3 +1,4 @@
+#include "evaluation.h"
 #include "forest.h"
 #include "forest_impl.h"
 #include "train.h"
@@ -331,12 +332,18 @@ namespace NGCForest {
                 calcs[j] = TCalculatorPtr(new TForestCalculator(TForest(cascade[i][j]), combiner));
             }
             features = Transpose(features);
+            std::vector<std::pair<int, double>> answers(x.size());
             for (size_t j = 0; j < x.size(); ++j) {
+                std::vector<TConstFeaturesPtr> scores(4);
                 for (size_t k = 0; k < 4; ++k) {
                     prevLevel[j][k] = calcs[k]->Calculate(features[j]);
+                    scores[k] = std::make_shared<TFeatures>(prevLevel[j][k]);
                 }
+                TFeatures res;
+                combiner->Combine(scores, res);
+                answers[j] = std::make_pair(y[j], res[1]);
             }
-            std::cout << "Done, time: " << time(nullptr) - startTime  << std::endl << std::endl;
+            std::cout << "Train AUC: " << AUC(std::move(answers)) << ", time: " << time(nullptr) - startTime << std::endl << std::endl;
         }
         return std::make_shared<TCascadeForestCalculator>(std::move(cascade), combiner);
     }

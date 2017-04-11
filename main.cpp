@@ -85,7 +85,7 @@ int main() {
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
     constexpr size_t levelCount = 30;
-    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 8, 100, levelCount);
+    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 12, 100, levelCount);
     train_x.clear();
     train_y.clear();
     ReadPool(test_x, test_y, "../test.tsv", 0.01, rng);
