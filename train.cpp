@@ -196,7 +196,7 @@ namespace NGCForest {
             time_t startTime = time(nullptr);
             size_t sampleCount = y.size();
             if (sampleCount > 10000)
-                sampleCount = 10000 + (sampleCount - 10000) / 10;
+                sampleCount = 10000 + (sampleCount - 10000) / 100;
             //std::cout << "\tTrain random tree, sampleCount: " << sampleCount << ", time: " << time(nullptr) - startTime << std::endl;
             std::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
@@ -285,10 +285,9 @@ namespace NGCForest {
     template<typename TTreeTrainer>
     TCalculatorPtr DoTrain(const TMiniBatch &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount, TTreeTrainer treeTrainer) {
         std::mt19937 rng; //(time(nullptr));
-        TMiniBatch tx = Transpose(x);
         TForest forest(treeCount);
         for (size_t i = 0; i < treeCount; ++i)
-            forest[i] = treeTrainer(tx, y, classCount, maxDepth, rng);
+            forest[i] = treeTrainer(x, y, classCount, maxDepth, rng);
         TCombinerPtr combiner(new TAverageCombiner);
         //TCombinerPtr combiner(new TMajorityVoteCombiner);
         return TCalculatorPtr(new TForestCalculator(std::move(forest), combiner));
@@ -302,28 +301,22 @@ namespace NGCForest {
         return DoTrain(x, y, classCount, maxDepth, treeCount, &TrainFullRandomTree);
     }
 
-    TCalculatorPtr TrainCascadeForest(const TMiniBatch &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount, size_t levelCount) {
+    TCalculatorPtr TrainCascadeForest(TMiniBatch &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount, size_t levelCount) {
         time_t startTime = time(nullptr);
         std::mt19937 rng; //(time(nullptr));
         TCascadeForest cascade(levelCount, TForests(4, TForest(treeCount)));
         TCombinerPtr combiner(new TAverageCombiner);
-        std::vector<std::vector<TFeatures>> prevLevel(x.size(), std::vector<TFeatures>(4));
+        size_t featureCount = x.size(), instanceCount = x.front().size();
+        x.resize(featureCount + 4, TFeatures(instanceCount));
         for (size_t i = 0; i < levelCount; ++i) {
             std::cout << "Train level: " << i << ", time: " << time(nullptr) - startTime << std::endl;
-            std::vector<TFeatures> features(x);
-            for (size_t j = 0; j < x.size(); ++j) {
-                for (const TFeatures &prev : prevLevel[j]) {
-                    features[j].insert(features[j].end(), prev.begin(), prev.end());
-                }
-            }
-            features = Transpose(features);
             for (size_t j = 0; j < 2; ++j) {
                 for (size_t k = 0; k < treeCount; ++k) {
-                    cascade[i][j][k] = TrainRandomTree(features, y, classCount, maxDepth, rng);
+                    cascade[i][j][k] = TrainRandomTree(x, y, classCount, maxDepth, rng);
                     if (i + 1 < levelCount)
-                        cascade[i][2 + j][k] = TrainFullRandomTree(features, y, classCount, maxDepth, rng);
+                        cascade[i][2 + j][k] = TrainFullRandomTree(x, y, classCount, maxDepth, rng);
                     else
-                        cascade[i][2 + j][k] = TrainRandomTree(features, y, classCount, maxDepth, rng);
+                        cascade[i][2 + j][k] = TrainRandomTree(x, y, classCount, maxDepth, rng);
                 }
             }
             std::cout << "Level trained, calculating features for next level, time: " << time(nullptr) - startTime  << std::endl;
@@ -331,13 +324,15 @@ namespace NGCForest {
             for (size_t j = 0; j < 4; ++j) {
                 calcs[j] = TCalculatorPtr(new TForestCalculator(TForest(cascade[i][j]), combiner));
             }
-            features = Transpose(features);
-            std::vector<std::pair<int, double>> answers(x.size());
-            for (size_t j = 0; j < x.size(); ++j) {
+            std::vector<std::pair<int, double>> answers(instanceCount);
+            for (size_t j = 0; j < instanceCount; ++j) {
+                TFeatures features(featureCount + 4);
+                for (size_t k = 0; k < featureCount + 4; ++k)
+                    features[k] = x[k][j];
                 std::vector<TConstFeaturesPtr> scores(4);
                 for (size_t k = 0; k < 4; ++k) {
-                    prevLevel[j][k] = calcs[k]->Calculate(features[j]);
-                    scores[k] = std::make_shared<TFeatures>(prevLevel[j][k]);
+                    scores[k] = std::make_shared<TFeatures>(calcs[k]->Calculate(features));
+                    x[featureCount + k][j] = (*scores[k])[0];
                 }
                 TFeatures res;
                 combiner->Combine(scores, res);

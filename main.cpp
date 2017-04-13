@@ -2,6 +2,7 @@
 #include "train.h"
 #include "forest.h"
 
+#include <exception>
 #include <iostream>
 #include <fstream>
 #include <random>
@@ -45,7 +46,41 @@ void GenerateData(std::vector<TFeatures> &x, std::vector<size_t> &y, size_t coun
     }
 }
 
-static void ReadPool(std::vector<TFeatures> &x, std::vector<size_t> &y, const std::string &path, double prob, std::mt19937 &rng) {
+static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, const std::string &path, double prob, size_t expectedCount, std::mt19937 &rng) {
+    std::bernoulli_distribution bern(prob);
+    std::ifstream file(path);
+    while (!file.eof()) {
+        std::string line;
+        std::getline(file, line);
+        std::istringstream str(line);
+        std::string item;
+        std::getline(str, item, '\t');
+        if (item == "EventId")
+            continue;
+        if (!bern(rng))
+            continue;
+        std::getline(str, item, '\t');
+        y.push_back(0);
+        str >> y.back();
+        std::getline(str, item, '\t');
+        size_t feature = 0;
+        while (!str.eof()) {
+            if (feature >= x.size()) {
+                x.emplace_back();
+                x.back().reserve(expectedCount);
+            }
+            x[feature].push_back(0.0);
+            str >> x[feature].back();
+            ++feature;
+        }
+        if (feature == 0)
+            y.pop_back();
+        if (x.front().size() >= 1000)
+            break;
+    }
+}
+
+static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, const std::string &path, double prob, std::mt19937 &rng) {
     std::bernoulli_distribution bern(prob);
     std::ifstream file(path);
     while (!file.eof()) {
@@ -62,7 +97,6 @@ static void ReadPool(std::vector<TFeatures> &x, std::vector<size_t> &y, const st
         y.push_back(0);
         str >> y.back();
         std::getline(str, item, '\t');
-        x.push_back(TFeatures());
         TFeatures &features = x.back();
         while (!str.eof()) {
             features.push_back(0.0);
@@ -75,17 +109,17 @@ static void ReadPool(std::vector<TFeatures> &x, std::vector<size_t> &y, const st
     }
 }
 
-int main() {
+void Work() {
     std::mt19937 rng;
     std::vector<TFeatures> train_x, test_x;
     std::vector<size_t> train_y, test_y;
-    ReadPool(train_x, train_y, "../train.tsv", 0.15, rng);
-    std::cout << train_x.size() << std::endl;
+    ReadPoolTransposed(train_x, train_y, "../train.tsv", 0.5, 3200000, rng);
+    std::cout << train_x.back().size() << " " << train_x.size() << std::endl;
     //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    constexpr size_t levelCount = 5;
-    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 12, 500, levelCount);
+    constexpr size_t levelCount = 10;
+    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 15, 1000, levelCount);
     train_x.clear();
     train_y.clear();
     ReadPool(test_x, test_y, "../test.tsv", 0.01, rng);
@@ -99,6 +133,15 @@ int main() {
             //std::cerr << test_y[i] << "\t" << res[1] << std::endl;
         }
         std::cout << "AUC " << k << ": " << AUC(std::move(answers)) << std::endl;
+    }
+}
+
+int main() {
+    try {
+        Work();
+    }
+    catch (const std::exception &ex) {
+        std::cout << "Exception caught: " << ex.what() << std::endl;
     }
     return 0;
 }
