@@ -196,8 +196,8 @@ namespace NGCForest {
         TTreeImplPtr TrainRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             time_t startTime = time(nullptr);
             size_t sampleCount = y.size();
-            if (sampleCount > 10000)
-                sampleCount = 10000 + (sampleCount - 10000) / 100;
+            if (sampleCount > 1000)
+                sampleCount = 1000 + (sampleCount - 1000) / 100;
             //std::cout << "\tTrain random tree, sampleCount: " << sampleCount << ", time: " << time(nullptr) - startTime << std::endl;
             std::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
@@ -240,8 +240,8 @@ namespace NGCForest {
         TTreeImplPtr TrainFullRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             time_t startTime = time(nullptr);
             size_t sampleCount = y.size();
-            if (sampleCount > 10000)
-                sampleCount = 10000 + (sampleCount - 10000) / 10;
+            if (sampleCount > 1000)
+                sampleCount = 1000 + (sampleCount - 1000) / 10;
             //std::cout << "\tTrain full random tree, sampleCount: " << sampleCount << ", time: " << time(nullptr) - startTime << std::endl;
             std::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
@@ -320,7 +320,7 @@ namespace NGCForest {
                 std::thread thrd([treeCount, classCount, maxDepth, i, t, levelCount, rndSeed, &cascade, &x, &y]() {
                     std::mt19937 r(rndSeed);
                     for (size_t k = 0; k < treeCount; ++k) {
-                        if (t < 2 && i + 1 < levelCount)
+                        if (t < 2 || i + 1 == levelCount)
                             cascade[i][t][k] = TrainRandomTree(x, y, classCount, maxDepth, r);
                         else
                             cascade[i][t][k] = TrainFullRandomTree(x, y, classCount, maxDepth, r);
