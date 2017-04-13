@@ -79,13 +79,13 @@ int main() {
     std::mt19937 rng;
     std::vector<TFeatures> train_x, test_x;
     std::vector<size_t> train_y, test_y;
-    ReadPool(train_x, train_y, "../train.tsv", 0.1, rng);
+    ReadPool(train_x, train_y, "../train.tsv", 0.15, rng);
     std::cout << train_x.size() << std::endl;
     //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    constexpr size_t levelCount = 30;
-    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 12, 100, levelCount);
+    constexpr size_t levelCount = 5;
+    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 12, 500, levelCount);
     train_x.clear();
     train_y.clear();
     ReadPool(test_x, test_y, "../test.tsv", 0.01, rng);
