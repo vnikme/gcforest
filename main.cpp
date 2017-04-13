@@ -2,10 +2,12 @@
 #include "train.h"
 #include "forest.h"
 
+#include <algorithm>
 #include <exception>
 #include <iostream>
 #include <fstream>
 #include <random>
+#include <thread>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -75,8 +77,8 @@ static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, const std:
         }
         if (feature == 0)
             y.pop_back();
-        if (x.front().size() >= 1000)
-            break;
+        //if (x.front().size() >= 1000)
+        //    break;
     }
 }
 
@@ -97,6 +99,7 @@ static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, const std::string &p
         y.push_back(0);
         str >> y.back();
         std::getline(str, item, '\t');
+        x.emplace_back();
         TFeatures &features = x.back();
         while (!str.eof()) {
             features.push_back(0.0);
@@ -106,6 +109,8 @@ static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, const std::string &p
             x.pop_back();
             y.pop_back();
         }
+        //if (x.size() >= 1000)
+        //    break;
     }
 }
 
@@ -118,20 +123,28 @@ void Work() {
     //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    constexpr size_t levelCount = 10;
+    constexpr size_t levelCount = 3;
     TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 15, 1000, levelCount);
     train_x.clear();
     train_y.clear();
-    ReadPool(test_x, test_y, "../test.tsv", 0.01, rng);
+    ReadPool(test_x, test_y, "../test.tsv", 0.05, rng);
     //GenerateData(test_x, test_y, 10000, rng);
+    size_t instanceCount = test_x.size();
     for (size_t k = 1; k <= levelCount; ++k) {
         TCalculatorPtr frst = dynamic_cast<TCascadeForestCalculator*>(forest.get())->GetSlice(k);
         std::vector<std::pair<int, double>> answers(test_x.size());
-        for (size_t i = 0; i < test_x.size(); ++i) {
-            TFeatures res = frst->Calculate(test_x[i]);
-            answers[i] = std::make_pair(test_y[i], res[1]);
-            //std::cerr << test_y[i] << "\t" << res[1] << std::endl;
+        std::vector<std::thread> threads(4);
+        for (size_t t = 0; t < 4; ++t) {
+            std::thread thrd([t, instanceCount, &answers, &test_x, &test_y, &frst]() {
+                for (size_t i = instanceCount / 4 * t; i < std::min(instanceCount, instanceCount / 4 * (t + 1)); ++i) {
+                    TFeatures res = frst->Calculate(test_x[i]);
+                    answers[i] = std::make_pair(test_y[i], res[1]);
+                }
+            });
+            threads[t] = std::move(thrd);
         }
+        for (size_t t = 0; t < 4; ++t)
+            threads[t].join();
         std::cout << "AUC " << k << ": " << AUC(std::move(answers)) << std::endl;
     }
 }

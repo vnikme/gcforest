@@ -9,6 +9,7 @@
 #include <iostream>
 #include <list>
 #include <random>
+#include <thread>
 
 
 namespace NGCForest {
@@ -137,8 +138,8 @@ namespace NGCForest {
                 }
             }
             rightBegin = b;
-            //std::sort(indexes.begin() + begin, indexes.begin() + rightBegin);
-            //std::sort(indexes.begin() + rightBegin, indexes.begin() + end);
+            std::sort(indexes.begin() + begin, indexes.begin() + rightBegin);
+            std::sort(indexes.begin() + rightBegin, indexes.begin() + end);
         }
 
         bool SplitNode(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, std::vector<size_t> &indexes, size_t begin, size_t end,
@@ -203,6 +204,7 @@ namespace NGCForest {
             for (size_t i = 0; i < sampleCount; ++i) {
                 indexes[i] = dist(rng);
             }
+            std::sort(indexes.begin(), indexes.end());
             TConstFeaturesPtr distr = std::make_shared<TFeatures>(std::move(ClassDistribution(y, classCount, indexes, 0, indexes.size())));
             TTreeNodePtr root(new TTreeNode(distr));
             std::list<TBucket> queue;
@@ -246,6 +248,7 @@ namespace NGCForest {
             for (size_t i = 0; i < sampleCount; ++i) {
                 indexes[i] = dist(rng);
             }
+            std::sort(indexes.begin(), indexes.end());
             TConstFeaturesPtr wholeDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(y, classCount, indexes, 0, indexes.size())));
             TTreeNodePtr root(new TTreeNode(wholeDistr));
             std::list<TBucket> queue;
@@ -310,34 +313,49 @@ namespace NGCForest {
         x.resize(featureCount + 4, TFeatures(instanceCount));
         for (size_t i = 0; i < levelCount; ++i) {
             std::cout << "Train level: " << i << ", time: " << time(nullptr) - startTime << std::endl;
-            for (size_t j = 0; j < 2; ++j) {
-                for (size_t k = 0; k < treeCount; ++k) {
-                    cascade[i][j][k] = TrainRandomTree(x, y, classCount, maxDepth, rng);
-                    if (i + 1 < levelCount)
-                        cascade[i][2 + j][k] = TrainFullRandomTree(x, y, classCount, maxDepth, rng);
-                    else
-                        cascade[i][2 + j][k] = TrainRandomTree(x, y, classCount, maxDepth, rng);
-                }
+            std::vector<std::thread> threads(4);
+            for (size_t t = 0; t < 4; ++t) {
+                std::uniform_int_distribution<size_t> dist;
+                size_t rndSeed = dist(rng);
+                std::thread thrd([treeCount, classCount, maxDepth, i, t, levelCount, rndSeed, &cascade, &x, &y]() {
+                    std::mt19937 r(rndSeed);
+                    for (size_t k = 0; k < treeCount; ++k) {
+                        if (t < 2 && i + 1 < levelCount)
+                            cascade[i][t][k] = TrainRandomTree(x, y, classCount, maxDepth, r);
+                        else
+                            cascade[i][t][k] = TrainFullRandomTree(x, y, classCount, maxDepth, r);
+                    }
+                });
+                threads[t] = std::move(thrd);
             }
+            for (size_t t = 0; t < 4; ++t)
+                threads[t].join();
             std::cout << "Level trained, calculating features for next level, time: " << time(nullptr) - startTime  << std::endl;
             std::vector<TCalculatorPtr> calcs(4);
             for (size_t j = 0; j < 4; ++j) {
                 calcs[j] = TCalculatorPtr(new TForestCalculator(TForest(cascade[i][j]), combiner));
             }
             std::vector<std::pair<int, double>> answers(instanceCount);
-            for (size_t j = 0; j < instanceCount; ++j) {
-                TFeatures features(featureCount + 4);
-                for (size_t k = 0; k < featureCount + 4; ++k)
-                    features[k] = x[k][j];
-                std::vector<TConstFeaturesPtr> scores(4);
-                for (size_t k = 0; k < 4; ++k) {
-                    scores[k] = std::make_shared<TFeatures>(calcs[k]->Calculate(features));
-                    x[featureCount + k][j] = (*scores[k])[0];
-                }
-                TFeatures res;
-                combiner->Combine(scores, res);
-                answers[j] = std::make_pair(y[j], res[1]);
+            for (size_t t = 0; t < 4; ++t) {
+                std::thread thrd([t, instanceCount, featureCount, &combiner, &answers, &x, &y, &calcs] () {
+                    for (size_t j = instanceCount / 4 * t; j < std::min(instanceCount, instanceCount / 4 * (t + 1)); ++j) {
+                        TFeatures features(featureCount + 4);
+                        for (size_t k = 0; k < featureCount + 4; ++k)
+                            features[k] = x[k][j];
+                        std::vector<TConstFeaturesPtr> scores(4);
+                        for (size_t k = 0; k < 4; ++k) {
+                            scores[k] = std::make_shared<TFeatures>(calcs[k]->Calculate(features));
+                            x[featureCount + k][j] = (*scores[k])[0];
+                        }
+                        TFeatures res;
+                        combiner->Combine(scores, res);
+                        answers[j] = std::make_pair(y[j], res[1]);
+                    }
+                });
+                threads[t] = std::move(thrd);
             }
+            for (size_t t = 0; t < 4; ++t)
+                threads[t].join();
             std::cout << "Train AUC: " << AUC(std::move(answers)) << ", time: " << time(nullptr) - startTime << std::endl << std::endl;
         }
         return std::make_shared<TCascadeForestCalculator>(std::move(cascade), combiner);
