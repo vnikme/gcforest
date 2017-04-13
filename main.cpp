@@ -85,7 +85,7 @@ static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, const std:
         }
         if (feature == 0)
             y.pop_back();
-        //if (x.front().size() >= 10000)
+        //if (x.front().size() >= 100000)
         //    break;
     }
 }
@@ -116,7 +116,7 @@ static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, const std::string &p
             x.pop_back();
             y.pop_back();
         }
-        //if (x.size() >= 1000)
+        //if (x.size() >= 10000)
         //    break;
     }
 }
@@ -124,20 +124,20 @@ static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, const std::string &p
 void Work() {
     std::vector<TFeatures> train_x, test_x;
     std::vector<size_t> train_y, test_y;
-    ReadPoolTransposed(train_x, train_y, "../train.tsv", 0.7, 4480000);
+    ReadPoolTransposed(train_x, train_y, "../train.tsv", 0.5, 3200000);
     std::cout << train_x.back().size() << " " << train_x.size() << std::endl;
     //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    constexpr size_t levelCount = 6;
-    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 15, 1000, levelCount);
+    constexpr size_t levelCount = 5;
+    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 12, 1000, levelCount);
     train_x.clear();
     train_y.clear();
     ReadPool(test_x, test_y, "../test.tsv", 0.01);
     //GenerateData(test_x, test_y, 10000, rng);
     size_t instanceCount = test_x.size();
-    for (size_t k = 1; k <= levelCount; ++k) {
-        TCalculatorPtr frst = dynamic_cast<TCascadeForestCalculator*>(forest.get())->GetSlice(k);
+    for (size_t k = 0; k < levelCount; ++k) {
+        TCalculatorPtr frst = dynamic_cast<TCascadeForestCalculator*>(forest.get())->GetSlice(k + 1);
         std::vector<std::pair<int, double>> answers(test_x.size());
         std::vector<std::thread> threads(4);
         for (size_t t = 0; t < 4; ++t) {

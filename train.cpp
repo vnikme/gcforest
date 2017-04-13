@@ -196,10 +196,9 @@ namespace NGCForest {
         TTreeImplPtr TrainRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             time_t startTime = time(nullptr);
             size_t sampleCount = y.size();
+            std::uniform_int_distribution<> dist(0, sampleCount - 1);
             if (sampleCount > 1000)
                 sampleCount = 1000 + (sampleCount - 1000) / 100;
-            //std::cout << "\tTrain random tree, sampleCount: " << sampleCount << ", time: " << time(nullptr) - startTime << std::endl;
-            std::uniform_int_distribution<> dist(0, sampleCount - 1);
             std::vector<size_t> indexes(sampleCount);
             for (size_t i = 0; i < sampleCount; ++i) {
                 indexes[i] = dist(rng);
@@ -240,10 +239,9 @@ namespace NGCForest {
         TTreeImplPtr TrainFullRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             time_t startTime = time(nullptr);
             size_t sampleCount = y.size();
-            if (sampleCount > 1000)
-                sampleCount = 1000 + (sampleCount - 1000) / 10;
-            //std::cout << "\tTrain full random tree, sampleCount: " << sampleCount << ", time: " << time(nullptr) - startTime << std::endl;
             std::uniform_int_distribution<> dist(0, sampleCount - 1);
+            if (sampleCount > 1000)
+                sampleCount = 1000 + (sampleCount - 1000) / 100;
             std::vector<size_t> indexes(sampleCount);
             for (size_t i = 0; i < sampleCount; ++i) {
                 indexes[i] = dist(rng);
@@ -310,7 +308,7 @@ namespace NGCForest {
         TCascadeForest cascade(levelCount, TForests(4, TForest(treeCount)));
         TCombinerPtr combiner(new TAverageCombiner);
         size_t featureCount = x.size(), instanceCount = x.front().size();
-        x.resize(featureCount + 4, TFeatures(instanceCount));
+        x.resize(featureCount + 4 * classCount, TFeatures(instanceCount));
         for (size_t i = 0; i < levelCount; ++i) {
             std::cout << "Train level: " << i << ", time: " << time(nullptr) - startTime << std::endl;
             std::vector<std::thread> threads(4);
@@ -320,7 +318,7 @@ namespace NGCForest {
                 std::thread thrd([treeCount, classCount, maxDepth, i, t, levelCount, rndSeed, &cascade, &x, &y]() {
                     std::mt19937 r(rndSeed);
                     for (size_t k = 0; k < treeCount; ++k) {
-                        if (t < 2 || i + 1 == levelCount)
+                        if (t < 2 /*|| i + 1 == levelCount*/)
                             cascade[i][t][k] = TrainRandomTree(x, y, classCount, maxDepth, r);
                         else
                             cascade[i][t][k] = TrainFullRandomTree(x, y, classCount, maxDepth, r);
@@ -337,7 +335,7 @@ namespace NGCForest {
             }
             std::vector<std::pair<int, double>> answers(instanceCount);
             for (size_t t = 0; t < 4; ++t) {
-                std::thread thrd([t, instanceCount, featureCount, &combiner, &answers, &x, &y, &calcs] () {
+                std::thread thrd([t, instanceCount, featureCount, classCount, &combiner, &answers, &x, &y, &calcs] () {
                     for (size_t j = instanceCount / 4 * t; j < std::min(instanceCount, instanceCount / 4 * (t + 1)); ++j) {
                         TFeatures features(featureCount + 4);
                         for (size_t k = 0; k < featureCount + 4; ++k)
@@ -345,7 +343,8 @@ namespace NGCForest {
                         std::vector<TConstFeaturesPtr> scores(4);
                         for (size_t k = 0; k < 4; ++k) {
                             scores[k] = std::make_shared<TFeatures>(calcs[k]->Calculate(features));
-                            x[featureCount + k][j] = (*scores[k])[0];
+                            for (size_t u = 0; u < classCount; ++u)
+                                x[featureCount + k * classCount + u][j] = (*scores[k])[u];
                         }
                         TFeatures res;
                         combiner->Combine(scores, res);

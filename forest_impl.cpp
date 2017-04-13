@@ -56,7 +56,8 @@ namespace NGCForest {
     TConstFeaturesPtr TTreeImpl::DoCalculate(const TFeatures &features) {
         TTreeNodePtr node = Root;
         while (!!node->GetLeftNode()) {
-            double featureValue = features[node->GetFeatureIndex()];
+            size_t idx = node->GetFeatureIndex();
+            double featureValue = idx < features.size() ? features[idx] : 0.0;
             if (featureValue < node->GetThreshold())
                 node = node->GetLeftNode();
             else
