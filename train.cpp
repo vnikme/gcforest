@@ -193,17 +193,24 @@ namespace NGCForest {
             return true;
         }
 
-        TTreeImplPtr TrainRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
+        TTreeImplPtr TrainRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, const std::vector<size_t> &g, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             time_t startTime = time(nullptr);
             size_t sampleCount = y.size();
-            std::uniform_int_distribution<> dist(0, sampleCount - 1);
-            if (sampleCount > 1000)
-                sampleCount = 1000 + (sampleCount - 1000) / 100;
-            std::vector<size_t> indexes(sampleCount);
-            for (size_t i = 0; i < sampleCount; ++i) {
-                indexes[i] = dist(rng);
+            std::bernoulli_distribution bern(0.1);
+            std::vector<size_t> indexes;
+            indexes.reserve(static_cast<size_t>(sampleCount * 0.11));
+            for (size_t i = 0; i < sampleCount; ) {
+                bool take = bern(rng);
+                if (take)
+                    indexes.push_back(i);
+                ++i;
+                while (i < sampleCount && g[i] == g[i - 1]) {
+                    if (take)
+                        indexes.push_back(i);
+                    ++i;
+                }
             }
-            std::sort(indexes.begin(), indexes.end());
+            sampleCount = indexes.size();
             TConstFeaturesPtr distr = std::make_shared<TFeatures>(std::move(ClassDistribution(y, classCount, indexes, 0, indexes.size())));
             TTreeNodePtr root(new TTreeNode(distr));
             std::list<TBucket> queue;
@@ -224,9 +231,9 @@ namespace NGCForest {
                     //TConstFeaturesPtr rightDistr = OneHot(WinnerClass(x, y, classCount, rightIndexes, rightBegin, item.End, rng), classCount);
                     TTreeNodePtr left(new TTreeNode(leftDistr)), right(new TTreeNode(rightDistr));
                     item.Node->SplitNode(featureIndex, threshold, left, right);
-                    if (item.Depth + 1 < maxDepth && !IsOnlyOneClass(y, indexes, item.Begin, rightBegin))
+                    if (rightBegin - item.Begin > 10 && item.Depth + 1 < maxDepth && !IsOnlyOneClass(y, indexes, item.Begin, rightBegin))
                         queue.push_back(TBucket(left, indexes, item.Begin, rightBegin, item.Depth + 1));
-                    if (item.Depth + 1 < maxDepth && !IsOnlyOneClass(y, indexes, rightBegin, item.End))
+                    if (item.End - rightBegin > 10 && item.Depth + 1 < maxDepth && !IsOnlyOneClass(y, indexes, rightBegin, item.End))
                         queue.push_back(TBucket(right, indexes, rightBegin, item.End, item.Depth + 1));
                 }
             }
@@ -236,17 +243,24 @@ namespace NGCForest {
             return TTreeImplPtr(new TTreeImpl(root));
         }
 
-        TTreeImplPtr TrainFullRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
+        TTreeImplPtr TrainFullRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, const std::vector<size_t> &g, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             time_t startTime = time(nullptr);
             size_t sampleCount = y.size();
-            std::uniform_int_distribution<> dist(0, sampleCount - 1);
-            if (sampleCount > 1000)
-                sampleCount = 1000 + (sampleCount - 1000) / 100;
-            std::vector<size_t> indexes(sampleCount);
-            for (size_t i = 0; i < sampleCount; ++i) {
-                indexes[i] = dist(rng);
+            std::bernoulli_distribution bern(0.1);
+            std::vector<size_t> indexes;
+            indexes.reserve(static_cast<size_t>(sampleCount * 0.11));
+            for (size_t i = 0; i < sampleCount; ) {
+                bool take = bern(rng);
+                if (take)
+                    indexes.push_back(i);
+                ++i;
+                while (i < sampleCount && g[i] == g[i - 1]) {
+                    if (take)
+                        indexes.push_back(i);
+                    ++i;
+                }
             }
-            std::sort(indexes.begin(), indexes.end());
+            sampleCount = indexes.size();
             TConstFeaturesPtr wholeDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(y, classCount, indexes, 0, indexes.size())));
             TTreeNodePtr root(new TTreeNode(wholeDistr));
             std::list<TBucket> queue;
@@ -260,19 +274,22 @@ namespace NGCForest {
                 size_t rightBegin = item.End;
                 if (SplitNodeRandom(x, y, classCount, item.Indexes, item.Begin, item.End, featureIndex, threshold, rightBegin, rng)) {
                     TConstFeaturesPtr leftDistr = wholeDistr, rightDistr = wholeDistr;
-                    if (item.Depth + 1 >= maxDepth || IsOnlyOneClass(y, indexes, item.Begin, rightBegin)) {
+                    bool stopLeft = false, stopRight = false;
+                    if (rightBegin - item.Begin <= 10 || IsOnlyOneClass(y, indexes, item.Begin, rightBegin)) {
                         leftDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(y, classCount, indexes, item.Begin, rightBegin)));
+                        stopLeft = true;
                         //std::cout << "Gini left: " << GiniImpurity(*leftDistr) << std::endl;
                     }
-                    if (item.Depth + 1 >= maxDepth || IsOnlyOneClass(y, indexes, rightBegin, item.End)) {
+                    if (item.End - rightBegin <= 10 || IsOnlyOneClass(y, indexes, rightBegin, item.End)) {
                         rightDistr = std::make_shared<TFeatures>(std::move(ClassDistribution(y, classCount, indexes, rightBegin, item.End)));
+                        stopRight = true;
                         //std::cout << "Gini right: " << GiniImpurity(*rightDistr) << std::endl;
                     }
                     TTreeNodePtr left(new TTreeNode(leftDistr)), right(new TTreeNode(rightDistr));
                     item.Node->SplitNode(featureIndex, threshold, left, right);
-                    if (item.Depth < maxDepth && !IsOnlyOneClass(y, indexes, item.Begin, rightBegin))
+                    if (!stopLeft)
                         queue.push_back(TBucket(left, indexes, item.Begin, rightBegin, item.Depth + 1));
-                    if (item.Depth < maxDepth && !IsOnlyOneClass(y, indexes, rightBegin, item.End))
+                    if (!stopRight)
                         queue.push_back(TBucket(right, indexes, rightBegin, item.End, item.Depth + 1));
                 }
             }
@@ -284,25 +301,25 @@ namespace NGCForest {
     } // namespace
 
     template<typename TTreeTrainer>
-    TCalculatorPtr DoTrain(const TMiniBatch &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount, TTreeTrainer treeTrainer) {
+    TCalculatorPtr DoTrain(const TMiniBatch &x, const std::vector<size_t> &y, const std::vector<size_t> &g, size_t classCount, size_t maxDepth, size_t treeCount, TTreeTrainer treeTrainer) {
         std::mt19937 rng; //(time(nullptr));
         TForest forest(treeCount);
         for (size_t i = 0; i < treeCount; ++i)
-            forest[i] = treeTrainer(x, y, classCount, maxDepth, rng);
+            forest[i] = treeTrainer(x, y, g, classCount, maxDepth, rng);
         TCombinerPtr combiner(new TAverageCombiner);
         //TCombinerPtr combiner(new TMajorityVoteCombiner);
         return TCalculatorPtr(new TForestCalculator(std::move(forest), combiner));
     }
 
-    TCalculatorPtr TrainRandomForest(const TMiniBatch &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount) {
-        return DoTrain(x, y, classCount, maxDepth, treeCount, &TrainRandomTree);
+    TCalculatorPtr TrainRandomForest(const TMiniBatch &x, const std::vector<size_t> &y, const std::vector<size_t> &g, size_t classCount, size_t maxDepth, size_t treeCount) {
+        return DoTrain(x, y, g, classCount, maxDepth, treeCount, &TrainRandomTree);
     }
 
-    TCalculatorPtr TrainFullRandomForest(const TMiniBatch &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount) {
-        return DoTrain(x, y, classCount, maxDepth, treeCount, &TrainFullRandomTree);
+    TCalculatorPtr TrainFullRandomForest(const TMiniBatch &x, const std::vector<size_t> &y, const std::vector<size_t> &g, size_t classCount, size_t maxDepth, size_t treeCount) {
+        return DoTrain(x, y, g, classCount, maxDepth, treeCount, &TrainFullRandomTree);
     }
 
-    TCalculatorPtr TrainCascadeForest(TMiniBatch &x, const std::vector<size_t> &y, size_t classCount, size_t maxDepth, size_t treeCount, size_t levelCount) {
+    TCalculatorPtr TrainCascadeForest(TMiniBatch &x, const std::vector<size_t> &y, const std::vector<size_t> &g, size_t classCount, size_t maxDepth, size_t treeCount, size_t levelCount) {
         time_t startTime = time(nullptr);
         std::mt19937 rng; //(time(nullptr));
         TCascadeForest cascade(levelCount, TForests(4, TForest(treeCount)));
@@ -315,13 +332,13 @@ namespace NGCForest {
             for (size_t t = 0; t < 4; ++t) {
                 std::uniform_int_distribution<size_t> dist;
                 size_t rndSeed = dist(rng);
-                std::thread thrd([treeCount, classCount, maxDepth, i, t, levelCount, rndSeed, &cascade, &x, &y]() {
+                std::thread thrd([treeCount, classCount, maxDepth, i, t, levelCount, rndSeed, &cascade, &x, &y, &g]() {
                     std::mt19937 r(rndSeed);
                     for (size_t k = 0; k < treeCount; ++k) {
                         if (t < 2 /*|| i + 1 == levelCount*/)
-                            cascade[i][t][k] = TrainRandomTree(x, y, classCount, maxDepth, r);
+                            cascade[i][t][k] = TrainRandomTree(x, y, g, classCount, maxDepth, r);
                         else
-                            cascade[i][t][k] = TrainFullRandomTree(x, y, classCount, maxDepth, r);
+                            cascade[i][t][k] = TrainFullRandomTree(x, y, g, classCount, maxDepth, r);
                     }
                 });
                 threads[t] = std::move(thrd);
@@ -337,8 +354,8 @@ namespace NGCForest {
             for (size_t t = 0; t < 4; ++t) {
                 std::thread thrd([t, instanceCount, featureCount, classCount, &combiner, &answers, &x, &y, &calcs] () {
                     for (size_t j = instanceCount / 4 * t; j < std::min(instanceCount, instanceCount / 4 * (t + 1)); ++j) {
-                        TFeatures features(featureCount + 4);
-                        for (size_t k = 0; k < featureCount + 4; ++k)
+                        TFeatures features(featureCount + 4 * classCount);
+                        for (size_t k = 0; k < featureCount + 4 * classCount; ++k)
                             features[k] = x[k][j];
                         std::vector<TConstFeaturesPtr> scores(4);
                         for (size_t k = 0; k < 4; ++k) {

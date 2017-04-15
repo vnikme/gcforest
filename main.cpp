@@ -57,8 +57,10 @@ static double RandId(const std::string &id) {
     return static_cast<double>(val) / std::numeric_limits<size_t>::max();
 }
 
-static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, const std::string &path, double prob, size_t expectedCount) {
+static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, std::vector<size_t> &g, const std::string &path, double prob, size_t expectedCount) {
     std::ifstream file(path);
+    std::string prevId;
+    size_t group = -1;
     while (!file.eof()) {
         std::string line;
         std::getline(file, line);
@@ -68,9 +70,15 @@ static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, const std:
         if (evid == "EventId")
             continue;
         std::getline(str, cvid, '\t');
-        if (RandId(evid + cvid) > prob)
+        std::string id = evid + cvid;
+        if (RandId(id) > prob)
             continue;
+        if (id != prevId) {
+            prevId = id;
+            ++group;
+        }
         y.push_back(0);
+        g.push_back(group);
         str >> y.back();
         std::getline(str, item, '\t');
         size_t feature = 0;
@@ -83,15 +91,19 @@ static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, const std:
             str >> x[feature].back();
             ++feature;
         }
-        if (feature == 0)
+        if (feature == 0) {
             y.pop_back();
-        //if (x.front().size() >= 100000)
-        //    break;
+            g.pop_back();
+        }
+        if (x.front().size() >= 10000)
+            break;
     }
 }
 
-static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, const std::string &path, double prob) {
+static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, std::vector<size_t> &g, const std::string &path, double prob) {
     std::ifstream file(path);
+    std::string prevId;
+    size_t group = -1;
     while (!file.eof()) {
         std::string line;
         std::getline(file, line);
@@ -101,9 +113,15 @@ static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, const std::string &p
         if (evid == "EventId")
             continue;
         std::getline(str, cvid, '\t');
-        if (RandId(evid + cvid) > prob)
+        std::string id = evid + cvid;
+        if (RandId(id) > prob)
             continue;
+        if (id != prevId) {
+            prevId = id;
+            ++group;
+        }
         y.push_back(0);
+        g.push_back(group);
         str >> y.back();
         std::getline(str, item, '\t');
         x.emplace_back();
@@ -115,36 +133,38 @@ static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, const std::string &p
         if (features.empty()) {
             x.pop_back();
             y.pop_back();
+            g.pop_back();
         }
-        //if (x.size() >= 10000)
-        //    break;
+        if (x.size() >= 10000)
+            break;
     }
 }
 
 void Work() {
-    std::vector<TFeatures> train_x, test_x;
-    std::vector<size_t> train_y, test_y;
-    ReadPoolTransposed(train_x, train_y, "../train.tsv", 0.5, 3200000);
-    std::cout << train_x.back().size() << " " << train_x.size() << std::endl;
+    std::vector<TFeatures> x;
+    std::vector<size_t> y, g;
+    ReadPoolTransposed(x, y, g, "../train.tsv", 0.5, 3200000);
+    std::cout << y.size() << " " << x.size() << std::endl;
     //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    constexpr size_t levelCount = 5;
-    TCalculatorPtr forest = TrainCascadeForest(train_x, train_y, 2, 12, 1000, levelCount);
-    train_x.clear();
-    train_y.clear();
-    ReadPool(test_x, test_y, "../test.tsv", 0.01);
+    constexpr size_t levelCount = 3;
+    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 12, 1000, levelCount);
+    x.clear();
+    y.clear();
+    g.clear();
+    ReadPool(x, y, g, "../test.tsv", 0.05);
     //GenerateData(test_x, test_y, 10000, rng);
-    size_t instanceCount = test_x.size();
+    size_t instanceCount = y.size();
     for (size_t k = 0; k < levelCount; ++k) {
         TCalculatorPtr frst = dynamic_cast<TCascadeForestCalculator*>(forest.get())->GetSlice(k + 1);
-        std::vector<std::pair<int, double>> answers(test_x.size());
+        std::vector<std::pair<int, double>> answers(instanceCount);
         std::vector<std::thread> threads(4);
         for (size_t t = 0; t < 4; ++t) {
-            std::thread thrd([t, instanceCount, &answers, &test_x, &test_y, &frst]() {
+            std::thread thrd([t, instanceCount, &answers, &x, &y, &frst]() {
                 for (size_t i = instanceCount / 4 * t; i < std::min(instanceCount, instanceCount / 4 * (t + 1)); ++i) {
-                    TFeatures res = frst->Calculate(test_x[i]);
-                    answers[i] = std::make_pair(test_y[i], res[1]);
+                    TFeatures res = frst->Calculate(x[i]);
+                    answers[i] = std::make_pair(y[i], res[1]);
                 }
             });
             threads[t] = std::move(thrd);
