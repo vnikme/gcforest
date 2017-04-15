@@ -196,9 +196,9 @@ namespace NGCForest {
         TTreeImplPtr TrainRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, const std::vector<size_t> &g, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             time_t startTime = time(nullptr);
             size_t sampleCount = y.size();
-            std::bernoulli_distribution bern(0.1);
+            std::bernoulli_distribution bern(0.01);
             std::vector<size_t> indexes;
-            indexes.reserve(static_cast<size_t>(sampleCount * 0.11));
+            indexes.reserve(static_cast<size_t>(sampleCount * 0.011));
             for (size_t i = 0; i < sampleCount; ) {
                 bool take = bern(rng);
                 if (take)
@@ -246,9 +246,9 @@ namespace NGCForest {
         TTreeImplPtr TrainFullRandomTree(const std::vector<TFeatures> &x, const std::vector<size_t> &y, const std::vector<size_t> &g, size_t classCount, size_t maxDepth, std::mt19937 &rng) {
             time_t startTime = time(nullptr);
             size_t sampleCount = y.size();
-            std::bernoulli_distribution bern(0.1);
+            std::bernoulli_distribution bern(0.01);
             std::vector<size_t> indexes;
-            indexes.reserve(static_cast<size_t>(sampleCount * 0.11));
+            indexes.reserve(static_cast<size_t>(sampleCount * 0.011));
             for (size_t i = 0; i < sampleCount; ) {
                 bool take = bern(rng);
                 if (take)

@@ -95,8 +95,8 @@ static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, std::vecto
             y.pop_back();
             g.pop_back();
         }
-        if (x.front().size() >= 10000)
-            break;
+        //if (x.front().size() >= 100000)
+        //    break;
     }
 }
 
@@ -135,21 +135,21 @@ static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, std::vector<size_t> 
             y.pop_back();
             g.pop_back();
         }
-        if (x.size() >= 10000)
-            break;
+        //if (x.size() >= 10000)
+        //    break;
     }
 }
 
 void Work() {
     std::vector<TFeatures> x;
     std::vector<size_t> y, g;
-    ReadPoolTransposed(x, y, g, "../train.tsv", 0.5, 3200000);
+    ReadPoolTransposed(x, y, g, "../train.tsv", 0.5, 3110000);
     std::cout << y.size() << " " << x.size() << std::endl;
     //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    constexpr size_t levelCount = 3;
-    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 12, 1000, levelCount);
+    constexpr size_t levelCount = 10;
+    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 20, 100, levelCount);
     x.clear();
     y.clear();
     g.clear();
