@@ -53,6 +53,23 @@ namespace NGCForest {
 
     } // namespace
 
+    std::vector<TFeatures> TCascadeForestCalculator::CalculateForAllLevels(const TFeatures &plainFeatures) const {
+        std::vector<TFeatures> result, prevLevel;
+        for (size_t i = 0; i < CascadeForest.size(); ++i) {
+            TFeatures features(plainFeatures);
+            for (const TFeatures &prev : prevLevel) {
+                features.insert(features.end(), prev.begin(), prev.end());
+            }
+            CalculateOneLevel(features, CascadeForest[i], Combiner, prevLevel);
+            std::vector<TConstFeaturesPtr> res(prevLevel.size());
+            for (size_t j = 0; j < prevLevel.size(); ++j)
+                res[j] = std::make_shared<TFeatures>(prevLevel[j]);
+            result.emplace_back();
+            Combiner->Combine(res, result.back());
+        }
+        return result;
+    }
+
     void TCascadeForestCalculator::DoCalculate(const TFeatures &plainFeatures, TFeatures &result) const {
         std::vector<TFeatures> prevLevel;
         for (size_t i = 0; i < CascadeForest.size(); ++i) {

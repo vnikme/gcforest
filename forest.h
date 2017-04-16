@@ -30,6 +30,7 @@ namespace NGCForest {
         public:
             TCascadeForestCalculator(TCascadeForest &&forest, TCombinerPtr combiner);
             TCalculatorPtr GetSlice(size_t k) const;
+            std::vector<TFeatures> CalculateForAllLevels(const TFeatures &features) const;
 
         protected:
             virtual void DoCalculate(const TFeatures &features, TFeatures &result) const;

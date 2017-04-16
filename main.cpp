@@ -149,29 +149,30 @@ void Work() {
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
     constexpr size_t levelCount = 10;
-    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 20, 100, levelCount);
+    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 20, 1000, levelCount);
     x.clear();
     y.clear();
     g.clear();
-    ReadPool(x, y, g, "../test.tsv", 0.05);
+    ReadPool(x, y, g, "../test.tsv", 0.1);
     //GenerateData(test_x, test_y, 10000, rng);
     size_t instanceCount = y.size();
+    TCascadeForestCalculator *calc = dynamic_cast<TCascadeForestCalculator*>(forest.get());
+    std::vector<std::vector<std::pair<int, double>>> answers(levelCount, std::vector<std::pair<int, double>>(instanceCount));
+    std::vector<std::thread> threads(4);
+    for (size_t t = 0; t < 4; ++t) {
+        std::thread thrd([t, levelCount, instanceCount, &answers, &x, &y, calc]() {
+            for (size_t i = instanceCount / 4 * t; i < std::min(instanceCount, instanceCount / 4 * (t + 1)); ++i) {
+                std::vector<TFeatures> res = calc->CalculateForAllLevels(x[i]);
+                for (size_t k = 0; k < levelCount; ++k)
+                    answers[k][i] = std::make_pair(y[i], res[k][1]);
+            }
+        });
+        threads[t] = std::move(thrd);
+    }
+    for (size_t t = 0; t < 4; ++t)
+        threads[t].join();
     for (size_t k = 0; k < levelCount; ++k) {
-        TCalculatorPtr frst = dynamic_cast<TCascadeForestCalculator*>(forest.get())->GetSlice(k + 1);
-        std::vector<std::pair<int, double>> answers(instanceCount);
-        std::vector<std::thread> threads(4);
-        for (size_t t = 0; t < 4; ++t) {
-            std::thread thrd([t, instanceCount, &answers, &x, &y, &frst]() {
-                for (size_t i = instanceCount / 4 * t; i < std::min(instanceCount, instanceCount / 4 * (t + 1)); ++i) {
-                    TFeatures res = frst->Calculate(x[i]);
-                    answers[i] = std::make_pair(y[i], res[1]);
-                }
-            });
-            threads[t] = std::move(thrd);
-        }
-        for (size_t t = 0; t < 4; ++t)
-            threads[t].join();
-        std::cout << "AUC " << k << ": " << AUC(std::move(answers)) << std::endl;
+        std::cout << "AUC " << k << ": " << AUC(std::move(answers[k])) << std::endl;
     }
 }
 
