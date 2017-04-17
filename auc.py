@@ -52,5 +52,6 @@ def main():
         print aucs[-1]
     print "Average:", sum(aucs) / len(aucs)
 
+
 if __name__ == "__main__":
     main()
