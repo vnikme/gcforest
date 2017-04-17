@@ -6,12 +6,12 @@
 namespace NGCForest {
 
     // TTreeNode
-    TTreeNode::TTreeNode(const TConstFeaturesPtr answers)
+    TTreeNode::TTreeNode()
         : FeatureIndex(0)
         , Threshold(0.0)
         , Left(TTreeNodePtr())
         , Right(TTreeNodePtr())
-        , Answers(answers)
+        , Answers()
     {
     }
 
@@ -41,6 +41,10 @@ namespace NGCForest {
         Left = left;
         Right = right;
         TConstFeaturesPtr().swap(Answers);
+    }
+
+    void TTreeNode::SetAnswers(const TConstFeaturesPtr &answers) {
+        Answers = answers;
     }
 
 

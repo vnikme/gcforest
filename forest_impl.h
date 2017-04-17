@@ -9,7 +9,7 @@ namespace NGCForest {
     using TTreeNodePtr = std::shared_ptr<TTreeNode>;
     class TTreeNode {
         public:
-            TTreeNode(const TConstFeaturesPtr answers);
+            TTreeNode();
 
             size_t GetFeatureIndex() const;
             double GetThreshold() const;
@@ -18,6 +18,7 @@ namespace NGCForest {
             TConstFeaturesPtr GetAnswers() const;
 
             void SplitNode(size_t featureIndex, double threshold, TTreeNodePtr left, TTreeNodePtr right);
+            void SetAnswers(const TConstFeaturesPtr &answers);
 
         private:
             size_t FeatureIndex;
