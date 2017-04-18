@@ -15,12 +15,14 @@
 
 using namespace NGCForest;
 
-void GenerateData(std::vector<TFeatures> &x, std::vector<size_t> &y, size_t count, std::mt19937 &rng) {
+void GenerateData(std::vector<TFeatures> &x, std::vector<size_t> &y, std::vector<size_t> &g, size_t count, std::mt19937 &rng) {
     std::uniform_real_distribution<double> noise(-0.1, 0.1), other(0.0, 1.0);
     std::bernoulli_distribution answer(0.3);
     x.resize(count);
     y.resize(count);
+    g.resize(count);
     for (size_t i = 0; i < count; ++i) {
+        g[i] = i;
         x[i].resize(50);
         if (answer(rng)) {
             y[i] = 1;
@@ -141,11 +143,13 @@ static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, std::vector<size_t> 
 }
 
 void Work() {
+    std::mt19937 rng;
     std::vector<TFeatures> x;
     std::vector<size_t> y, g;
-    ReadPoolTransposed(x, y, g, "../train.tsv", 0.5, 3200000);
+    //ReadPoolTransposed(x, y, g, "../train.tsv", 0.5, 3200000);
+    GenerateData(x, y, g, 100000, rng);
+    x = Transpose(x);
     std::cout << y.size() << " " << x.size() << std::endl;
-    //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
     constexpr size_t levelCount = 30;
@@ -153,8 +157,8 @@ void Work() {
     x.clear();
     y.clear();
     g.clear();
-    ReadPool(x, y, g, "../test.tsv", 0.1);
-    //GenerateData(test_x, test_y, 10000, rng);
+    //ReadPool(x, y, g, "../test.tsv", 0.1);
+    GenerateData(x, y, g, 10000, rng);
     size_t instanceCount = y.size();
     TCascadeForestCalculator *calc = dynamic_cast<TCascadeForestCalculator*>(forest.get());
     std::vector<std::vector<std::pair<int, double>>> answers(levelCount, std::vector<std::pair<int, double>>(instanceCount));
