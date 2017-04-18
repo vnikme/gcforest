@@ -148,8 +148,8 @@ void Work() {
     //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    constexpr size_t levelCount = 10;
-    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 20, 64, 0.5, 100, levelCount);
+    constexpr size_t levelCount = 30;
+    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 20, 128, 0.5, 100, levelCount);
     x.clear();
     y.clear();
     g.clear();
