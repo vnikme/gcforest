@@ -143,17 +143,17 @@ static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, std::vector<size_t> 
 void Work() {
     std::vector<TFeatures> x;
     std::vector<size_t> y, g;
-    ReadPoolTransposed(x, y, g, "../train.tsv", 0.1, 640000);
+    ReadPoolTransposed(x, y, g, "../train.tsv", 0.5, 3200000);
     std::cout << y.size() << " " << x.size() << std::endl;
     //GenerateData(train_x, train_y, 100000, rng);
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
     constexpr size_t levelCount = 10;
-    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 20, 128, 0.5, 100, levelCount);
+    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 20, 64, 0.5, 100, levelCount);
     x.clear();
     y.clear();
     g.clear();
-    ReadPool(x, y, g, "../test.tsv", 0.05);
+    ReadPool(x, y, g, "../test.tsv", 0.1);
     //GenerateData(test_x, test_y, 10000, rng);
     size_t instanceCount = y.size();
     TCascadeForestCalculator *calc = dynamic_cast<TCascadeForestCalculator*>(forest.get());
