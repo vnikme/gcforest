@@ -152,14 +152,15 @@ void Work() {
     std::cout << y.size() << " " << x.size() << std::endl;
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    constexpr size_t levelCount = 10;
+    constexpr size_t levelCount = 5;
     TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 20, 128, 0.5, 100, levelCount);
     x.clear();
     y.clear();
     g.clear();
     //ReadPool(x, y, g, "../test.tsv", 0.1);
-    GenerateData(x, y, g, 10000, rng);
+    GenerateData(x, y, g, 100000, rng);
     size_t instanceCount = y.size();
+    time_t startTime = time(nullptr);
     TCascadeForestCalculator *calc = dynamic_cast<TCascadeForestCalculator*>(forest.get());
     std::vector<std::vector<std::pair<int, double>>> answers(levelCount, std::vector<std::pair<int, double>>(instanceCount));
     std::vector<std::thread> threads(4);
@@ -178,6 +179,7 @@ void Work() {
     for (size_t k = 0; k < levelCount; ++k) {
         std::cout << "AUC " << k << ": " << AUC(std::move(answers[k])) << std::endl;
     }
+    std::cout << "Testing time: " << time(nullptr) - startTime << std::endl;
 }
 
 int main() {
