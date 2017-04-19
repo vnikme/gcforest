@@ -15,28 +15,54 @@ namespace NGCForest {
             double GetThreshold() const;
             TTreeNodePtr GetLeftNode() const;
             TTreeNodePtr GetRightNode() const;
-            TConstFeaturesPtr GetAnswers() const;
+            const TFeatures &GetAnswers() const;
 
             void SplitNode(size_t featureIndex, double threshold, TTreeNodePtr left, TTreeNodePtr right);
-            void SetAnswers(const TConstFeaturesPtr &answers);
+            void SetAnswers(TFeatures &&answers);
 
         private:
             size_t FeatureIndex;
             double Threshold;
             TTreeNodePtr Left, Right;
-            TConstFeaturesPtr Answers;
+            TFeatures Answers;
     };
 
 
     class TTreeImpl {
         public:
-            TTreeImpl(TTreeNodePtr root);
-            ~TTreeImpl();
+            TTreeImpl();
+            virtual ~TTreeImpl();
 
-            TConstFeaturesPtr DoCalculate(const TFeatures &features);
+            const TFeatures &Calculate(const TFeatures &features) const;
+
+        protected:
+            virtual const TFeatures &DoCalculate(const TFeatures &features) const = 0;
+    };
+
+
+    class TDynamicTreeImpl : public TTreeImpl {
+        public:
+            TDynamicTreeImpl(TTreeNodePtr root);
+
+        protected:
+            virtual const TFeatures &DoCalculate(const TFeatures &features) const;
 
         private:
             TTreeNodePtr Root;
+    };
+
+
+    class TObliviousTreeImpl : public TTreeImpl {
+        public:
+            TObliviousTreeImpl(const std::vector<size_t> &featureIndexes, const std::vector<double> &thresholds, const std::vector<TFeatures> &answers);
+
+        protected:
+            virtual const TFeatures &DoCalculate(const TFeatures &features) const;
+
+        private:
+            std::vector<size_t> FeatureIndexes;
+            std::vector<double> Thresholds;
+            std::vector<TFeatures> Answers;
     };
 
 } // namespace NGCForest

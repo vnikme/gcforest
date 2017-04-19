@@ -14,9 +14,9 @@ namespace NGCForest {
     namespace {
 
         void CalculateOneForest(const TFeatures &features, const TForest &forest, TCombinerPtr combiner, TFeatures &result) {
-            std::vector<TConstFeaturesPtr> res(forest.size());
+            std::vector<const TFeatures*> res(forest.size());
             for (size_t i = 0; i < forest.size(); ++i)
-                res[i] = forest[i]->DoCalculate(features);
+                res[i] = &forest[i]->Calculate(features);
             combiner->Combine(res, result);
         }
 
@@ -61,9 +61,9 @@ namespace NGCForest {
                 features.insert(features.end(), prev.begin(), prev.end());
             }
             CalculateOneLevel(features, CascadeForest[i], Combiner, prevLevel);
-            std::vector<TConstFeaturesPtr> res(3 + 0 * prevLevel.size());
+            std::vector<const TFeatures*> res(3 + 0 * prevLevel.size());
             for (size_t j = 0; j < 3 + 0 * prevLevel.size(); ++j)
-                res[j] = std::make_shared<TFeatures>(prevLevel[j]);
+                res[j] = &prevLevel[j];
             result.emplace_back();
             Combiner->Combine(res, result.back());
         }
@@ -79,9 +79,9 @@ namespace NGCForest {
             }
             CalculateOneLevel(features, CascadeForest[i], Combiner, prevLevel);
         }
-        std::vector<TConstFeaturesPtr> res(prevLevel.size());
+        std::vector<const TFeatures*> res(prevLevel.size());
         for (size_t i = 0; i < prevLevel.size(); ++i)
-            res[i] = std::make_shared<TFeatures>(std::move(prevLevel[i]));
+            res[i] = &prevLevel[i];
         Combiner->Combine(res, result);
     }
 

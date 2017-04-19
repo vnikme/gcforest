@@ -31,7 +31,7 @@ namespace NGCForest {
         return Right;
     }
 
-    TConstFeaturesPtr TTreeNode::GetAnswers() const {
+    const TFeatures &TTreeNode::GetAnswers() const {
         return Answers;
     }
 
@@ -40,24 +40,33 @@ namespace NGCForest {
         Threshold = threshold;
         Left = left;
         Right = right;
-        TConstFeaturesPtr().swap(Answers);
+        Answers.clear();
     }
 
-    void TTreeNode::SetAnswers(const TConstFeaturesPtr &answers) {
-        Answers = answers;
+    void TTreeNode::SetAnswers(TFeatures &&answers) {
+        Answers = std::move(answers);
     }
 
 
     // TTreeImpl
-    TTreeImpl::TTreeImpl(TTreeNodePtr root)
-        : Root(root)
-    {
+    TTreeImpl::TTreeImpl() {
     }
 
     TTreeImpl::~TTreeImpl() {
     }
 
-    TConstFeaturesPtr TTreeImpl::DoCalculate(const TFeatures &features) {
+    const TFeatures &TTreeImpl::Calculate(const TFeatures &features) const {
+        return DoCalculate(features);
+    }
+
+
+    // TDynamicTreeImpl
+    TDynamicTreeImpl::TDynamicTreeImpl(TTreeNodePtr root)
+        : Root(root)
+    {
+    }
+
+    const TFeatures &TDynamicTreeImpl::DoCalculate(const TFeatures &features) const {
         TTreeNodePtr node = Root;
         while (!!node->GetLeftNode()) {
             size_t idx = node->GetFeatureIndex();
@@ -69,6 +78,27 @@ namespace NGCForest {
         }
         return node->GetAnswers();
     }
+
+
+    // TObliviousTreeImpl
+    TObliviousTreeImpl::TObliviousTreeImpl(const std::vector<size_t> &featureIndexes, const std::vector<double> &thresholds, const std::vector<TFeatures> &answers)
+        : FeatureIndexes(featureIndexes)
+        , Thresholds(thresholds)
+        , Answers(answers)
+    {
+    }
+
+    const TFeatures &TObliviousTreeImpl::DoCalculate(const TFeatures &features) const {
+        size_t mask = 0;
+        for (size_t i = 0; i < FeatureIndexes.size(); ++i) {
+            mask <<= 1;
+            double val = features[FeatureIndexes[i]];
+            if (val >= Thresholds[i])
+                mask |= 1;
+        }
+        return Answers[mask];
+    }
+
 
 } // namespace NGCForest
 
