@@ -26,5 +26,9 @@ namespace NGCForest {
         return result;
     }
 
+    void TCalculator::Save(std::ostream &fout) const {
+        DoSave(fout);
+    }
+
 } // namespace NGCForest
 

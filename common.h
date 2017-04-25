@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <iosfwd>
 
 
 namespace NGCForest {
@@ -24,9 +25,11 @@ namespace NGCForest {
             virtual ~TCalculator() {}
             TFeatures Calculate(const TFeatures &features) const;
             TMiniBatch Calculate(const TMiniBatch &minibatch) const;
+            void Save(std::ostream &fout) const;
 
         protected:
             virtual void DoCalculate(const TFeatures &features, TFeatures &result) const = 0;
+            virtual void DoSave(std::ostream &fout) const = 0;
     };
     using TCalculatorPtr = std::shared_ptr<TCalculator>;
 

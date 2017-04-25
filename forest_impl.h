@@ -34,9 +34,11 @@ namespace NGCForest {
             virtual ~TTreeImpl();
 
             const TFeatures &Calculate(const TFeatures &features) const;
+            void Save(std::ostream &fout) const;
 
         protected:
             virtual const TFeatures &DoCalculate(const TFeatures &features) const = 0;
+            virtual void DoSave(std::ostream &fout) const = 0;
     };
 
 
@@ -46,6 +48,7 @@ namespace NGCForest {
 
         protected:
             virtual const TFeatures &DoCalculate(const TFeatures &features) const;
+            virtual void DoSave(std::ostream &fout) const;
 
         private:
             TTreeNodePtr Root;
@@ -58,6 +61,7 @@ namespace NGCForest {
 
         protected:
             virtual const TFeatures &DoCalculate(const TFeatures &features) const;
+            virtual void DoSave(std::ostream &fout) const;
 
         private:
             std::vector<size_t> FeatureIndexes;

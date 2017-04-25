@@ -1,5 +1,6 @@
 #include "forest.h"
 #include "forest_impl.h"
+#include <ostream>
 
 
 namespace NGCForest {
@@ -24,6 +25,14 @@ namespace NGCForest {
 
     void TForestCalculator::DoCalculate(const TFeatures &features, TFeatures &result) const {
         CalculateOneForest(features, Forest, Combiner, result);
+    }
+
+    void TForestCalculator::DoSave(std::ostream &fout) const {
+        fout << Forest.size();
+        for (size_t i = 0; i < Forest.size(); ++i) {
+            fout << ' ';
+            Forest[i]->Save(fout);
+        }
     }
 
 
@@ -61,8 +70,8 @@ namespace NGCForest {
                 features.insert(features.end(), prev.begin(), prev.end());
             }
             CalculateOneLevel(features, CascadeForest[i], Combiner, prevLevel);
-            std::vector<const TFeatures*> res(3 + 0 * prevLevel.size());
-            for (size_t j = 0; j < 3 + 0 * prevLevel.size(); ++j)
+            std::vector<const TFeatures*> res(4 + 0 * prevLevel.size());
+            for (size_t j = 0; j < 4 + 0 * prevLevel.size(); ++j)
                 res[j] = &prevLevel[j];
             result.emplace_back();
             Combiner->Combine(res, result.back());
@@ -83,6 +92,20 @@ namespace NGCForest {
         for (size_t i = 0; i < prevLevel.size(); ++i)
             res[i] = &prevLevel[i];
         Combiner->Combine(res, result);
+    }
+
+    void TCascadeForestCalculator::DoSave(std::ostream &fout) const {
+        fout << CascadeForest.size();
+        for (size_t i = 0; i < CascadeForest.size(); ++i) {
+            fout << ' ' << CascadeForest[i].size();
+            for (const TForest &forest : CascadeForest[i]) {
+                fout << ' ' << forest.size();
+                for (const TTreeImplPtr &tree : forest) {
+                    fout << ' ';
+                    tree->Save(fout);
+                }
+            }
+        }
     }
 
 } // namespace NDecisionTree

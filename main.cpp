@@ -59,7 +59,7 @@ static double RandId(const std::string &id) {
     return static_cast<double>(val) / std::numeric_limits<size_t>::max();
 }
 
-static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, std::vector<size_t> &g, const std::string &path, double prob, size_t expectedCount) {
+static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, std::vector<size_t> &g, const std::string &path, double prob, size_t expectedCount, std::vector<std::string> &featureNames) {
     std::ifstream file(path);
     std::string prevId;
     size_t group = -1;
@@ -69,8 +69,15 @@ static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, std::vecto
         std::istringstream str(line);
         std::string evid, cvid, item;
         std::getline(str, evid, '\t');
-        if (evid == "EventId")
+        if (evid == "EventId") {
+            for (size_t i = 0; i < 3; ++i)
+                std::getline(str, item, '\t');
+            while (!str.eof()) {
+                std::getline(str, item, '\t');
+                featureNames.push_back(item);
+            }
             continue;
+        }
         std::getline(str, cvid, '\t');
         std::string id = evid + cvid;
         if (RandId(id) > prob)
@@ -83,6 +90,8 @@ static void ReadPoolTransposed(TMiniBatch &x, std::vector<size_t> &y, std::vecto
         g.push_back(group);
         str >> y.back();
         std::getline(str, item, '\t');
+        double dummy;
+        str >> dummy;
         size_t feature = 0;
         while (!str.eof()) {
             if (feature >= x.size()) {
@@ -128,6 +137,8 @@ static void ReadPool(TMiniBatch &x, std::vector<size_t> &y, std::vector<size_t> 
         std::getline(str, item, '\t');
         x.emplace_back();
         TFeatures &features = x.back();
+        double dummy;
+        str >> dummy;
         while (!str.eof()) {
             features.push_back(0.0);
             str >> features.back();
@@ -146,19 +157,20 @@ void Work() {
     std::mt19937 rng;
     std::vector<TFeatures> x;
     std::vector<size_t> y, g;
-    //ReadPoolTransposed(x, y, g, "../train.tsv", 0.5, 3200000);
-    GenerateData(x, y, g, 100000, rng);
-    x = Transpose(x);
+    std::vector<std::string> featureNames;
+    ReadPoolTransposed(x, y, g, "../train.tsv", 0.5, 3200000, featureNames);
+    //GenerateData(x, y, g, 100000, rng);
+    //x = Transpose(x);
     std::cout << y.size() << " " << x.size() << std::endl;
     //TCalculatorPtr forest = TrainRandomForest(train_x, train_y, 2, 10, 100);
     //TCalculatorPtr forest = TrainFullRandomForest(train_x, train_y, 2, 10, 100);
-    constexpr size_t levelCount = 5;
-    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 20, 128, 0.5, 100, levelCount);
+    constexpr size_t levelCount = 10;
+    TCalculatorPtr forest = TrainCascadeForest(x, y, g, 2, 20, 128, 0.7, 25, levelCount);
     x.clear();
     y.clear();
     g.clear();
-    //ReadPool(x, y, g, "../test.tsv", 0.1);
-    GenerateData(x, y, g, 100000, rng);
+    ReadPool(x, y, g, "../test.tsv", 0.1);
+    //GenerateData(x, y, g, 100000, rng);
     size_t instanceCount = y.size();
     time_t startTime = time(nullptr);
     TCascadeForestCalculator *calc = dynamic_cast<TCascadeForestCalculator*>(forest.get());
@@ -180,6 +192,12 @@ void Work() {
         std::cout << "AUC " << k << ": " << AUC(std::move(answers[k])) << std::endl;
     }
     std::cout << "Testing time: " << time(nullptr) - startTime << std::endl;
+    std::ofstream fout("model.txt");
+    fout << featureNames.size();
+    for (const std::string &name : featureNames)
+        fout << ' ' << name;
+    fout << std::endl;
+    forest->Save(fout);
 }
 
 int main() {

@@ -1,5 +1,6 @@
 
 #include "forest_impl.h"
+#include <ostream>
 #include <vector>
 
 
@@ -58,6 +59,10 @@ namespace NGCForest {
     const TFeatures &TTreeImpl::Calculate(const TFeatures &features) const {
         return DoCalculate(features);
     }
+    
+    void TTreeImpl::Save(std::ostream &fout) const {
+        DoSave(fout);
+    }
 
 
     // TDynamicTreeImpl
@@ -78,6 +83,10 @@ namespace NGCForest {
         }
         return node->GetAnswers();
     }
+    
+    void TDynamicTreeImpl::DoSave(std::ostream &fout) const {
+        // todo: to be done
+    }
 
 
     // TObliviousTreeImpl
@@ -97,6 +106,17 @@ namespace NGCForest {
                 mask |= 1;
         }
         return Answers[mask];
+    }
+
+    void TObliviousTreeImpl::DoSave(std::ostream &fout) const {
+        fout << FeatureIndexes.size() << ' ' << Answers.front().size();
+        for (size_t i = 0; i < FeatureIndexes.size(); ++i)
+            fout << ' ' << FeatureIndexes[i] << ' ' << Thresholds[i];
+        for (size_t i = 0; i < Answers.size(); ++i) {
+            for (size_t j = 0; j < Answers[i].size(); ++j) {
+                fout << ' ' << Answers[i][j];
+            }
+        }
     }
 
 

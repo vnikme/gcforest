@@ -472,12 +472,12 @@ namespace NGCForest {
                     try {
                         std::mt19937 r(rndSeed);
                         for (size_t k = 0; k < treeCount; ++k) {
-                            if (t < 3 /*|| i + 1 == levelCount*/)
+                            if (t < 4 /*|| i + 1 == levelCount*/)
                                 //cascade[i][t][k] = TrainRandomTree(x, y, g, classCount, maxDepth, maxLeaves, poolPart, r);
-                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 7, false, poolPart, r);
+                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 5, false, poolPart, r);
                             else
                                 //cascade[i][t][k] = TrainFullRandomTree(x, y, g, classCount, maxDepth, maxLeaves, poolPart, r);
-                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 7, true, poolPart, r);
+                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 5, true, poolPart, r);
                         }
                     }
                     catch (const std::exception &ex) {
@@ -509,7 +509,7 @@ namespace NGCForest {
                                 for (size_t u = 0; u < classCount; ++u)
                                     x[featureCount + k * classCount + u][j] = scores[k][u];
                             }
-                            pscores.resize(3);
+                            //pscores.resize(3);
                             TFeatures res;
                             combiner->Combine(pscores, res);
                             answers[j] = std::make_pair(y[j], res[1]);

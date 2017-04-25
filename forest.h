@@ -19,6 +19,7 @@ namespace NGCForest {
 
         protected:
             virtual void DoCalculate(const TFeatures &features, TFeatures &result) const;
+            virtual void DoSave(std::ostream &fout) const;
 
         private:
             TForest Forest;
@@ -34,6 +35,7 @@ namespace NGCForest {
 
         protected:
             virtual void DoCalculate(const TFeatures &features, TFeatures &result) const;
+            virtual void DoSave(std::ostream &fout) const;
 
         private:
             TCascadeForest CascadeForest;
