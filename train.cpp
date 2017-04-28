@@ -474,10 +474,10 @@ namespace NGCForest {
                         for (size_t k = 0; k < treeCount; ++k) {
                             if (t < 4 /*|| i + 1 == levelCount*/)
                                 //cascade[i][t][k] = TrainRandomTree(x, y, g, classCount, maxDepth, maxLeaves, poolPart, r);
-                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 5, false, poolPart, r);
+                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 6, false, poolPart, r);
                             else
                                 //cascade[i][t][k] = TrainFullRandomTree(x, y, g, classCount, maxDepth, maxLeaves, poolPart, r);
-                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 5, true, poolPart, r);
+                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 6, true, poolPart, r);
                         }
                     }
                     catch (const std::exception &ex) {
