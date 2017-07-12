@@ -418,11 +418,11 @@ namespace NGCForest {
                     nextBins.push_back(bins[i]);
                     nextBins.emplace_back();
                     SplitIndexes(x[bestFeature], bestThreshold, indexes, bins[i], bins[i + 1], nextBins.back());
-                    if (nextBins.back() - bins[i] > 30)
+                    if (nextBins.back() - bins[i] > 100)
                         nextAnswers.push_back(ClassDistribution(y, classCount, indexes, bins[i], nextBins.back()));
                     else
                         nextAnswers.push_back(answers[i]);
-                    if (bins[i + 1] - nextBins.back() > 30)
+                    if (bins[i + 1] - nextBins.back() > 100)
                         nextAnswers.push_back(ClassDistribution(y, classCount, indexes, nextBins.back(), bins[i + 1]));
                     else
                         nextAnswers.push_back(answers[i]);
@@ -468,16 +468,16 @@ namespace NGCForest {
             for (size_t t = 0; t < 4; ++t) {
                 std::uniform_int_distribution<size_t> dist;
                 size_t rndSeed = dist(rng);
-                std::thread thrd([treeCount, classCount, maxDepth, maxLeaves, poolPart, i, t, levelCount, rndSeed, &cascade, &x, &y, &g]() {
+                std::thread thrd([treeCount, featureCount, classCount, maxDepth, maxLeaves, poolPart, i, t, levelCount, rndSeed, &cascade, &x, &y, &g]() {
                     try {
                         std::mt19937 r(rndSeed);
                         for (size_t k = 0; k < treeCount; ++k) {
                             if (t < 4 /*|| i + 1 == levelCount*/)
                                 //cascade[i][t][k] = TrainRandomTree(x, y, g, classCount, maxDepth, maxLeaves, poolPart, r);
-                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 6, false, poolPart, r);
+                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 7, false, poolPart, r);
                             else
                                 //cascade[i][t][k] = TrainFullRandomTree(x, y, g, classCount, maxDepth, maxLeaves, poolPart, r);
-                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 6, true, poolPart, r);
+                                cascade[i][t][k] = TrainObliviousTree(x, y, g, classCount, 7, true, poolPart, r);
                         }
                     }
                     catch (const std::exception &ex) {
